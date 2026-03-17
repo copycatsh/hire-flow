@@ -130,12 +130,17 @@ services:
     build:
       context: ./services/jobs-api
     container_name: hire-flow-jobs-api
+    environment:
+      DATABASE_URL: "postgres://hire_flow:hire_flow_dev@postgres-jobs:5432/jobs_db?sslmode=disable"
+      NATS_URL: "nats://nats:4222"
     ports:
       - "8001:8001"
     networks:
       - hire-flow
     depends_on:
       postgres-jobs:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health > /dev/null 2>&1"]
