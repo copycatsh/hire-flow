@@ -1,0 +1,18 @@
+# Go binaries (built with: go build ./cmd/server/)
+/services/*/server
+/services/bff/*/server
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Agent/AI tool dirs
+.agent/
+.agents/
+.junie/
+
+.claude/skills/
+skills-lock.json
