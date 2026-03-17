@@ -1,0 +1,55 @@
+http:
+  routers:
+    bff-client:
+      rule: "PathPrefix(`/client`)"
+      entryPoints:
+        - web
+      middlewares:
+        - strip-client
+      service: bff-client
+
+    bff-freelancer:
+      rule: "PathPrefix(`/freelancer`)"
+      entryPoints:
+        - web
+      middlewares:
+        - strip-freelancer
+      service: bff-freelancer
+
+    bff-admin:
+      rule: "PathPrefix(`/admin`)"
+      entryPoints:
+        - web
+      middlewares:
+        - strip-admin
+      service: bff-admin
+
+  middlewares:
+    strip-client:
+      stripPrefix:
+        prefixes:
+          - /client
+    strip-freelancer:
+      stripPrefix:
+        prefixes:
+          - /freelancer
+    strip-admin:
+      stripPrefix:
+        prefixes:
+          - /admin
+
+  services:
+    bff-client:
+      loadBalancer:
+        servers:
+          - url: "http://bff-client:8010"
+
+    bff-freelancer:
+      loadBalancer:
+        servers:
+          - url: "http://bff-freelancer:8011"
+
+    bff-admin:
+      loadBalancer:
+        servers:
+          - url: "http://bff-admin:8012"

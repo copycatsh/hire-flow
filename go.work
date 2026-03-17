@@ -1,0 +1,10 @@
+go 1.25.0
+
+use (
+	./services/bff/admin
+	./services/bff/client
+	./services/bff/freelancer
+	./services/contracts
+	./services/jobs-api
+	./services/payments
+)

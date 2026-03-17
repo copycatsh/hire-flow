@@ -1,0 +1,239 @@
+name: hire-flow
+
+networks:
+  hire-flow:
+    name: hire-flow
+    driver: bridge
+
+volumes:
+  postgres-jobs-data:
+  postgres-payments-data:
+  mysql-data:
+  nats-data:
+  qdrant-data:
+
+services:
+  # ── Infrastructure ──────────────────────────────────────────
+
+  traefik:
+    image: traefik:v3.4
+    container_name: hire-flow-traefik
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres-jobs:
+    image: postgres:16-alpine
+    container_name: hire-flow-postgres-jobs
+    environment:
+      POSTGRES_USER: hire_flow
+      POSTGRES_PASSWORD: hire_flow_dev
+      POSTGRES_DB: jobs_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-jobs-data:/var/lib/postgresql/data
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hire_flow -d jobs_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres-payments:
+    image: postgres:16-alpine
+    container_name: hire-flow-postgres-payments
+    environment:
+      POSTGRES_USER: hire_flow
+      POSTGRES_PASSWORD: hire_flow_dev
+      POSTGRES_DB: payments_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-payments-data:/var/lib/postgresql/data
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hire_flow -d payments_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  mysql:
+    image: mysql:8.4
+    container_name: hire-flow-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: hire_flow_dev
+      MYSQL_DATABASE: contracts_db
+      MYSQL_USER: hire_flow
+      MYSQL_PASSWORD: hire_flow_dev
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "hire_flow", "-phire_flow_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  nats:
+    image: nats:2-alpine
+    container_name: hire-flow-nats
+    command: ["-c", "/etc/nats/nats-server.conf"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/data/jetstream
+      - ./infra/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    container_name: hire-flow-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Core Services ───────────────────────────────────────────
+
+  jobs-api:
+    build:
+      context: ./services/jobs-api
+    container_name: hire-flow-jobs-api
+    ports:
+      - "8001:8001"
+    networks:
+      - hire-flow
+    depends_on:
+      postgres-jobs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  ai-matching:
+    build:
+      context: ./services/ai-matching
+    container_name: hire-flow-ai-matching
+    ports:
+      - "8002:8002"
+    networks:
+      - hire-flow
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  contracts:
+    build:
+      context: ./services/contracts
+    container_name: hire-flow-contracts
+    ports:
+      - "8003:8003"
+    networks:
+      - hire-flow
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8003/health > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  payments:
+    build:
+      context: ./services/payments
+    container_name: hire-flow-payments
+    ports:
+      - "8004:8004"
+    networks:
+      - hire-flow
+    depends_on:
+      postgres-payments:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8004/health > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── BFF Layer ───────────────────────────────────────────────
+
+  bff-client:
+    build:
+      context: ./services/bff/client
+    container_name: hire-flow-bff-client
+    ports:
+      - "8010:8010"
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8010/health > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  bff-freelancer:
+    build:
+      context: ./services/bff/freelancer
+    container_name: hire-flow-bff-freelancer
+    ports:
+      - "8011:8011"
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8011/health > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  bff-admin:
+    build:
+      context: ./services/bff/admin
+    container_name: hire-flow-bff-admin
+    ports:
+      - "8012:8012"
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8012/health > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
