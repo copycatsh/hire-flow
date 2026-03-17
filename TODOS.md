@@ -1,7 +1,24 @@
 # TODOS
 
 ## Pending
-(none)
+
+### Add optimistic locking to jobs and profiles
+- **What:** Add `version` column to jobs/profiles, return 409 on conflict
+- **Why:** Concurrent updates currently use last-write-wins with no conflict detection
+- **Context:** Not needed for M1 (single-user testing) but will matter when BFFs aggregate requests from multiple clients (M5)
+- **Depends on:** M1 complete
+
+### Extract outbox pattern to pkg/outbox/
+- **What:** Shared outbox publisher + store for jobs-api, payments, contracts
+- **Why:** Payments (M3) and contracts (M4) will need the same outbox pattern
+- **Context:** Currently local to jobs-api. Extract when second consumer exists in M3.
+- **Depends on:** M1 complete, triggered by M3 start
+
+### Add OpenAPI spec generation for jobs-api
+- **What:** Auto-generate API docs (swaggo or oapi-codegen)
+- **Why:** BFF developers (M5) will need API documentation
+- **Context:** Deferred from M1 scope (not in merge criteria). Becomes valuable pre-M5.
+- **Depends on:** M1 complete
 
 ## Completed
 
