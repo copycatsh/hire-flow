@@ -14,6 +14,12 @@
 - **Context:** Currently local to jobs-api. Extract when second consumer exists in M3.
 - **Depends on:** M1 complete, triggered by M3 start
 
+### Add match.found event publishing to ai-matching
+- **What:** When match score exceeds threshold, publish to NATS MATCHES stream
+- **Why:** Enables real-time notifications when matches are found (consumed by BFFs/Contracts)
+- **Context:** Deferred from M2 scope — no consumer exists yet. Consumer + Qdrant store already in place; adding publishing is ~30 lines
+- **Depends on:** M2 complete, triggered by M4/M5
+
 ### Add OpenAPI spec generation for jobs-api
 - **What:** Auto-generate API docs (swaggo or oapi-codegen)
 - **Why:** BFF developers (M5) will need API documentation
