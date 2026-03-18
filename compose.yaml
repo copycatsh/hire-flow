@@ -11,6 +11,7 @@ volumes:
   mysql-data:
   nats-data:
   qdrant-data:
+  hf-cache:
 
 services:
   # ── Infrastructure ──────────────────────────────────────────
@@ -152,12 +153,21 @@ services:
     build:
       context: ./services/ai-matching
     container_name: hire-flow-ai-matching
+    environment:
+      NATS_URL: "nats://nats:4222"
+      QDRANT_HOST: "qdrant"
+      QDRANT_PORT: "6333"
+      HF_HOME: "/cache/huggingface"
     ports:
       - "8002:8002"
+    volumes:
+      - hf-cache:/cache/huggingface
     networks:
       - hire-flow
     depends_on:
       qdrant:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]

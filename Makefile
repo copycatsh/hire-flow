@@ -1,4 +1,4 @@
-.PHONY: up down health health-traefik logs test migrate build
+.PHONY: up down health health-traefik logs test test-go test-python migrate build
 
 # Start all services
 up:
@@ -63,8 +63,15 @@ logs:
 	docker compose logs -f $(s)
 
 # Run all Go tests (via go workspace)
-test:
+test-go:
 	go test ./...
+
+# Run Python tests (ai-matching unit tests)
+test-python:
+	cd services/ai-matching && python3 -m pytest tests/ -v --ignore=tests/test_integration.py
+
+# Run all tests
+test: test-go test-python
 
 # Run migrations (placeholder for M1+)
 migrate:
