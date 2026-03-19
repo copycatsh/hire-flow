@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/copycatsh/hire-flow/pkg/outbox"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
@@ -55,26 +56,26 @@ func (m *mockJobStore) Update(ctx context.Context, db DBTX, id uuid.UUID, req Up
 }
 
 type mockOutboxStore struct {
-	insertFn          func(ctx context.Context, db DBTX, entry OutboxEntry) error
-	fetchUnpublishedFn func(ctx context.Context, db DBTX, limit int) ([]OutboxEntry, error)
-	markPublishedFn   func(ctx context.Context, db DBTX, ids []uuid.UUID) error
+	insertFn          func(ctx context.Context, db outbox.DBTX, entry outbox.Entry) error
+	fetchUnpublishedFn func(ctx context.Context, db outbox.DBTX, limit int) ([]outbox.Entry, error)
+	markPublishedFn   func(ctx context.Context, db outbox.DBTX, ids []uuid.UUID) error
 }
 
-func (m *mockOutboxStore) Insert(ctx context.Context, db DBTX, entry OutboxEntry) error {
+func (m *mockOutboxStore) Insert(ctx context.Context, db outbox.DBTX, entry outbox.Entry) error {
 	if m.insertFn != nil {
 		return m.insertFn(ctx, db, entry)
 	}
 	return nil
 }
 
-func (m *mockOutboxStore) FetchUnpublished(ctx context.Context, db DBTX, limit int) ([]OutboxEntry, error) {
+func (m *mockOutboxStore) FetchUnpublished(ctx context.Context, db outbox.DBTX, limit int) ([]outbox.Entry, error) {
 	if m.fetchUnpublishedFn != nil {
 		return m.fetchUnpublishedFn(ctx, db, limit)
 	}
 	return nil, nil
 }
 
-func (m *mockOutboxStore) MarkPublished(ctx context.Context, db DBTX, ids []uuid.UUID) error {
+func (m *mockOutboxStore) MarkPublished(ctx context.Context, db outbox.DBTX, ids []uuid.UUID) error {
 	if m.markPublishedFn != nil {
 		return m.markPublishedFn(ctx, db, ids)
 	}

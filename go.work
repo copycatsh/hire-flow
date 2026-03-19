@@ -1,6 +1,7 @@
 go 1.25.0
 
 use (
+	./pkg/outbox
 	./services/bff/admin
 	./services/bff/client
 	./services/bff/freelancer

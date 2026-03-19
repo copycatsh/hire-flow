@@ -1,4 +1,4 @@
-package main
+package outbox
 
 import (
 	"context"
@@ -10,24 +10,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type OutboxEntry struct {
-	ID            uuid.UUID  `json:"id"`
-	AggregateType string     `json:"aggregate_type"`
-	AggregateID   uuid.UUID  `json:"aggregate_id"`
-	EventType     string     `json:"event_type"`
-	Payload       []byte     `json:"payload"`
-	CreatedAt     time.Time  `json:"created_at"`
-	PublishedAt   *time.Time `json:"published_at,omitzero"`
-}
-
-type OutboxStore interface {
-	Insert(ctx context.Context, db DBTX, entry OutboxEntry) error
-	FetchUnpublished(ctx context.Context, db DBTX, limit int) ([]OutboxEntry, error)
-	MarkPublished(ctx context.Context, db DBTX, ids []uuid.UUID) error
-}
-
 //
-// OutboxPublisher polls unpublished outbox entries and publishes them to NATS.
+// Publisher polls unpublished outbox entries and publishes them via EventPublisher.
 //
 //	┌──────────┐   TX   ┌──────────┐
 //	│ Handler   │──────▶│ outbox   │
@@ -38,25 +22,25 @@ type OutboxStore interface {
 //	                    └──────────┘       └──────────┘
 //
 
-type OutboxPublisher struct {
-	store    OutboxStore
+type Publisher struct {
+	store    Store
 	pool     *pgxpool.Pool
-	nats     *NATSClient
+	pub      EventPublisher
 	interval time.Duration
 	batch    int
 }
 
-func NewOutboxPublisher(store OutboxStore, pool *pgxpool.Pool, nc *NATSClient, interval time.Duration) *OutboxPublisher {
-	return &OutboxPublisher{
+func NewPublisher(store Store, pool *pgxpool.Pool, pub EventPublisher, interval time.Duration) *Publisher {
+	return &Publisher{
 		store:    store,
 		pool:     pool,
-		nats:     nc,
+		pub:      pub,
 		interval: interval,
 		batch:    100,
 	}
 }
 
-func (p *OutboxPublisher) Run(ctx context.Context) {
+func (p *Publisher) Run(ctx context.Context) {
 	ticker := time.NewTicker(p.interval)
 	defer ticker.Stop()
 
@@ -65,14 +49,14 @@ func (p *OutboxPublisher) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := p.publishBatch(ctx); err != nil {
+			if err := p.PublishBatch(ctx); err != nil {
 				slog.Error("outbox publish batch", "error", err)
 			}
 		}
 	}
 }
 
-func (p *OutboxPublisher) publishBatch(ctx context.Context) error {
+func (p *Publisher) PublishBatch(ctx context.Context) error {
 	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("outbox begin tx: %w", err)
@@ -89,7 +73,7 @@ func (p *OutboxPublisher) publishBatch(ctx context.Context) error {
 
 	var published []uuid.UUID
 	for _, e := range entries {
-		if err := p.nats.Publish(ctx, e.EventType, e.Payload); err != nil {
+		if err := p.pub.Publish(ctx, e.EventType, e.Payload); err != nil {
 			slog.Error("outbox: publish to nats", "error", err, "entry_id", e.ID)
 			continue
 		}
