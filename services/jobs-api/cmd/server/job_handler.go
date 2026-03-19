@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/copycatsh/hire-flow/pkg/outbox"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
@@ -13,7 +14,7 @@ import (
 type JobHandler struct {
 	pool   *pgxpool.Pool
 	jobs   JobStore
-	outbox OutboxStore
+	outbox outbox.Store
 }
 
 func (h *JobHandler) Create(c echo.Context) error {
@@ -46,7 +47,7 @@ func (h *JobHandler) Create(c echo.Context) error {
 		return err
 	}
 
-	err = h.outbox.Insert(ctx, tx, OutboxEntry{
+	err = h.outbox.Insert(ctx, tx, outbox.Entry{
 		AggregateType: "job",
 		AggregateID:   job.ID,
 		EventType:     EventJobCreated,
@@ -141,7 +142,7 @@ func (h *JobHandler) Update(c echo.Context) error {
 		return err
 	}
 
-	err = h.outbox.Insert(ctx, tx, OutboxEntry{
+	err = h.outbox.Insert(ctx, tx, outbox.Entry{
 		AggregateType: "job",
 		AggregateID:   job.ID,
 		EventType:     EventJobUpdated,

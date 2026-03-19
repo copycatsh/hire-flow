@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/copycatsh/hire-flow/pkg/outbox"
 	"github.com/copycatsh/hire-flow/services/jobs-api/migrations"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -74,7 +75,7 @@ func setupNATS(t *testing.T, ctx context.Context) *NATSClient {
 	return nc
 }
 
-func setupEcho(pool *pgxpool.Pool, jobStore JobStore, profileStore ProfileStore, outboxStore OutboxStore) *echo.Echo {
+func setupEcho(pool *pgxpool.Pool, jobStore JobStore, profileStore ProfileStore, outboxStore outbox.Store) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HTTPErrorHandler = customErrorHandler
@@ -98,7 +99,7 @@ func TestJobCRUD_Integration(t *testing.T) {
 	pool := setupPostgres(t, ctx)
 
 	jobStore := &PostgresJobStore{}
-	outboxStore := &PostgresOutboxStore{}
+	outboxStore := &outbox.PostgresStore{}
 	e := setupEcho(pool, jobStore, &PostgresProfileStore{}, outboxStore)
 
 	clientID := uuid.New()
@@ -187,7 +188,7 @@ func TestOutboxPublisher_Integration(t *testing.T) {
 	nc := setupNATS(t, ctx)
 
 	jobStore := &PostgresJobStore{}
-	outboxStore := &PostgresOutboxStore{}
+	outboxStore := &outbox.PostgresStore{}
 
 	// Create a job + outbox entry via store directly
 	tx, err := pool.Begin(ctx)
@@ -202,7 +203,7 @@ func TestOutboxPublisher_Integration(t *testing.T) {
 	payload, err := json.Marshal(job)
 	require.NoError(t, err)
 
-	err = outboxStore.Insert(ctx, tx, OutboxEntry{
+	err = outboxStore.Insert(ctx, tx, outbox.Entry{
 		AggregateType: "job",
 		AggregateID:   job.ID,
 		EventType:     EventJobCreated,
@@ -226,8 +227,8 @@ func TestOutboxPublisher_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run publisher batch
-	publisher := NewOutboxPublisher(outboxStore, pool, nc, time.Second)
-	require.NoError(t, publisher.publishBatch(ctx))
+	publisher := outbox.NewPublisher(outboxStore, pool, nc, time.Second)
+	require.NoError(t, publisher.PublishBatch(ctx))
 
 	// Verify message received
 	msg, err := consumer.Next(jetstream.FetchMaxWait(5 * time.Second))
@@ -257,7 +258,7 @@ func TestProfileCRUD_Integration(t *testing.T) {
 	pool := setupPostgres(t, ctx)
 
 	profileStore := &PostgresProfileStore{}
-	outboxStore := &PostgresOutboxStore{}
+	outboxStore := &outbox.PostgresStore{}
 	e := setupEcho(pool, &PostgresJobStore{}, profileStore, outboxStore)
 
 	// Create profile

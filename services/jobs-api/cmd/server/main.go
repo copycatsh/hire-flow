@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/copycatsh/hire-flow/pkg/outbox"
 	"github.com/copycatsh/hire-flow/services/jobs-api/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
@@ -74,7 +75,7 @@ func main() {
 	// Stores
 	jobStore := &PostgresJobStore{}
 	profileStore := &PostgresProfileStore{}
-	outboxStore := &PostgresOutboxStore{}
+	outboxStore := &outbox.PostgresStore{}
 
 	// Echo
 	e := echo.New()
@@ -94,7 +95,7 @@ func main() {
 	profileHandler.RegisterRoutes(e.Group("/api/v1/profiles"))
 
 	// Outbox publisher
-	publisher := NewOutboxPublisher(outboxStore, pool, nc, pollInterval)
+	publisher := outbox.NewPublisher(outboxStore, pool, nc, pollInterval)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {

@@ -1,4 +1,4 @@
-package main
+package outbox
 
 import (
 	"context"
@@ -8,9 +8,10 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type PostgresOutboxStore struct{}
+// PostgresStore implements Store using PostgreSQL.
+type PostgresStore struct{}
 
-func (s *PostgresOutboxStore) Insert(ctx context.Context, db DBTX, entry OutboxEntry) error {
+func (s *PostgresStore) Insert(ctx context.Context, db DBTX, entry Entry) error {
 	_, err := db.Exec(ctx,
 		`INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload)
 		 VALUES ($1, $2, $3, $4)`,
@@ -22,7 +23,7 @@ func (s *PostgresOutboxStore) Insert(ctx context.Context, db DBTX, entry OutboxE
 	return nil
 }
 
-func (s *PostgresOutboxStore) FetchUnpublished(ctx context.Context, db DBTX, limit int) ([]OutboxEntry, error) {
+func (s *PostgresStore) FetchUnpublished(ctx context.Context, db DBTX, limit int) ([]Entry, error) {
 	rows, err := db.Query(ctx,
 		`SELECT id, aggregate_type, aggregate_id, event_type, payload, created_at, published_at
 		 FROM outbox
@@ -35,14 +36,14 @@ func (s *PostgresOutboxStore) FetchUnpublished(ctx context.Context, db DBTX, lim
 		return nil, fmt.Errorf("outbox fetch unpublished: %w", err)
 	}
 
-	entries, err := pgx.CollectRows(rows, pgx.RowToStructByPos[OutboxEntry])
+	entries, err := pgx.CollectRows(rows, pgx.RowToStructByPos[Entry])
 	if err != nil {
 		return nil, fmt.Errorf("outbox fetch unpublished collect: %w", err)
 	}
 	return entries, nil
 }
 
-func (s *PostgresOutboxStore) MarkPublished(ctx context.Context, db DBTX, ids []uuid.UUID) error {
+func (s *PostgresStore) MarkPublished(ctx context.Context, db DBTX, ids []uuid.UUID) error {
 	_, err := db.Exec(ctx,
 		`UPDATE outbox SET published_at = now() WHERE id = ANY($1)`, ids,
 	)
