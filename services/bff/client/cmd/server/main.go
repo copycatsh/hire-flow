@@ -10,6 +10,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/copycatsh/hire-flow/pkg/telemetry"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func main() {
@@ -22,9 +25,25 @@ func main() {
 	matchingURL := cmp.Or(os.Getenv("MATCHING_URL"), "http://ai-matching:8002")
 	contractsURL := cmp.Or(os.Getenv("CONTRACTS_URL"), "http://contracts:8003")
 	paymentsURL := cmp.Or(os.Getenv("PAYMENTS_URL"), "http://payments:8004")
+	otelEndpoint := cmp.Or(os.Getenv("OTEL_ENDPOINT"), "localhost:4317")
+
+	slog.SetDefault(slog.New(
+		telemetry.NewTracedHandler(slog.NewJSONHandler(os.Stdout, nil)),
+	))
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	shutdownTelemetry, err := telemetry.Init(ctx, "bff-client", otelEndpoint)
+	if err != nil {
+		slog.ErrorContext(ctx, "telemetry init", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := shutdownTelemetry(context.Background()); err != nil {
+			slog.Error("telemetry shutdown", "error", err)
+		}
+	}()
 
 	auth := &AuthConfig{
 		Secret:          []byte(jwtSecret),
@@ -32,7 +51,10 @@ func main() {
 		RefreshTokenTTL: 7 * 24 * time.Hour,
 	}
 
-	httpClient := &http.Client{Timeout: 10 * time.Second}
+	httpClient := &http.Client{
+		Timeout:   10 * time.Second,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+	}
 	jobsClient := &ServiceClient{BaseURL: jobsURL, HTTP: httpClient, Name: "jobs-api"}
 	matchingClient := &ServiceClient{BaseURL: matchingURL, HTTP: httpClient, Name: "ai-matching"}
 	contractsClient := &ServiceClient{BaseURL: contractsURL, HTTP: httpClient, Name: "contracts"}
@@ -46,6 +68,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
+	mux.Handle("GET /metrics", telemetry.MetricsHandler())
 
 	authHandler := &AuthHandler{auth: auth}
 	authHandler.RegisterRoutes(mux)
@@ -67,7 +90,7 @@ func main() {
 	protected := auth.JWTMiddleware(rateLimiter.Middleware(apiMux))
 	mux.Handle("/api/", protected)
 
-	handler := RequestLogger(mux)
+	handler := otelhttp.NewHandler(RequestLogger(mux), "bff-client")
 
 	srv := &http.Server{
 		Addr:         port,
@@ -78,18 +101,18 @@ func main() {
 	}
 
 	go func() {
-		slog.Info("starting bff-client", "port", port)
+		slog.InfoContext(ctx, "starting bff-client", "port", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server failed", "error", err)
+			slog.ErrorContext(ctx, "server failed", "error", err)
 			stop()
 		}
 	}()
 
 	<-ctx.Done()
-	slog.Info("shutting down bff-client")
+	slog.InfoContext(ctx, "shutting down bff-client")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		slog.Error("shutdown error", "error", err)
+		slog.ErrorContext(shutdownCtx, "shutdown error", "error", err)
 	}
 }

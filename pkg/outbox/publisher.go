@@ -50,7 +50,7 @@ func (p *Publisher) Run(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := p.PublishBatch(ctx); err != nil {
-				slog.Error("outbox publish batch", "error", err)
+				slog.ErrorContext(ctx, "outbox publish batch", "error", err)
 			}
 		}
 	}
@@ -74,7 +74,7 @@ func (p *Publisher) PublishBatch(ctx context.Context) error {
 	var published []uuid.UUID
 	for _, e := range entries {
 		if err := p.pub.Publish(ctx, e.EventType, e.Payload); err != nil {
-			slog.Error("outbox: publish to nats", "error", err, "entry_id", e.ID)
+			slog.ErrorContext(ctx, "outbox: publish to nats", "error", err, "entry_id", e.ID)
 			continue
 		}
 		published = append(published, e.ID)

@@ -13,10 +13,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/copycatsh/hire-flow/pkg/telemetry"
 	"github.com/copycatsh/hire-flow/services/contracts/migrations"
 	"github.com/go-chi/chi/v5"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/pressly/goose/v3"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -32,13 +34,30 @@ func main() {
 		os.Exit(1)
 	}
 
+	otelEndpoint := cmp.Or(os.Getenv("OTEL_ENDPOINT"), "localhost:4317")
+
+	slog.SetDefault(slog.New(
+		telemetry.NewTracedHandler(slog.NewJSONHandler(os.Stdout, nil)),
+	))
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	shutdownTelemetry, err := telemetry.Init(ctx, "contracts", otelEndpoint)
+	if err != nil {
+		slog.ErrorContext(ctx, "telemetry init", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := shutdownTelemetry(context.Background()); err != nil {
+			slog.Error("telemetry shutdown", "error", err)
+		}
+	}()
 
 	// MySQL
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		slog.Error("open mysql", "error", err)
+		slog.ErrorContext(ctx, "open mysql", "error", err)
 		os.Exit(1)
 	}
 	defer db.Close()
@@ -50,30 +69,30 @@ func main() {
 	// Run migrations
 	goose.SetBaseFS(migrations.FS)
 	if err := goose.SetDialect("mysql"); err != nil {
-		slog.Error("goose set dialect", "error", err)
+		slog.ErrorContext(ctx, "goose set dialect", "error", err)
 		os.Exit(1)
 	}
 	if err := goose.Up(db, "."); err != nil {
-		slog.Error("goose up", "error", err)
+		slog.ErrorContext(ctx, "goose up", "error", err)
 		os.Exit(1)
 	}
 
 	// NATS
 	nc, err := NewNATSClient(natsURL)
 	if err != nil {
-		slog.Error("nats connect", "error", err)
+		slog.ErrorContext(ctx, "nats connect", "error", err)
 		os.Exit(1)
 	}
 	defer nc.Close()
 
 	if err := nc.EnsureStream(ctx); err != nil {
-		slog.Error("nats ensure contracts stream", "error", err)
+		slog.ErrorContext(ctx, "nats ensure contracts stream", "error", err)
 		os.Exit(1)
 	}
 
 	paymentsConsumer, err := nc.EnsurePaymentsConsumer(ctx)
 	if err != nil {
-		slog.Error("nats ensure payments consumer", "error", err)
+		slog.ErrorContext(ctx, "nats ensure payments consumer", "error", err)
 		os.Exit(1)
 	}
 
@@ -99,6 +118,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
+	r.Handle("/metrics", telemetry.MetricsHandler())
 	handler.RegisterRoutes(r)
 
 	// Outbox publisher
@@ -117,24 +137,24 @@ func main() {
 	})
 
 	// Start HTTP server
-	srv := &http.Server{Addr: port, Handler: r}
+	srv := &http.Server{Addr: port, Handler: otelhttp.NewHandler(r, "contracts")}
 	go func() {
-		slog.Info("starting contracts", "port", port)
+		slog.InfoContext(ctx, "starting contracts", "port", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server failed", "error", err)
+			slog.ErrorContext(ctx, "server failed", "error", err)
 			stop()
 		}
 	}()
 
 	// Graceful shutdown
 	<-ctx.Done()
-	slog.Info("shutting down")
+	slog.InfoContext(ctx, "shutting down")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		slog.Error("server shutdown", "error", err)
+		slog.ErrorContext(shutdownCtx, "server shutdown", "error", err)
 	}
 
 	wg.Wait()
@@ -154,25 +174,25 @@ func runPaymentsConsumer(ctx context.Context, consumer jetstream.Consumer, saga 
 			if ctx.Err() != nil {
 				return
 			}
-			slog.Error("nats fetch", "error", err)
+			slog.ErrorContext(ctx, "nats fetch", "error", err)
 			continue
 		}
 
 		for msg := range msgs.Messages() {
 			subject := msg.Subject()
-			slog.Info("received payment event", "subject", subject)
+			slog.InfoContext(ctx, "received payment event", "subject", subject)
 
 			var payload struct {
 				ContractID string `json:"contract_id"`
 			}
 			if err := json.Unmarshal(msg.Data(), &payload); err != nil {
-				slog.Error("nats unmarshal", "error", err, "subject", subject)
+				slog.ErrorContext(ctx, "nats unmarshal", "error", err, "subject", subject)
 				msg.Nak()
 				continue
 			}
 
 			if payload.ContractID == "" {
-				slog.Error("nats event missing contract_id", "subject", subject, "data", string(msg.Data()))
+				slog.ErrorContext(ctx, "nats event missing contract_id", "subject", subject, "data", string(msg.Data()))
 				msg.Term()
 				continue
 			}
@@ -184,11 +204,11 @@ func runPaymentsConsumer(ctx context.Context, consumer jetstream.Consumer, saga 
 			case "payments.payment.failed":
 				handleErr = saga.HandlePaymentFailed(ctx, payload.ContractID)
 			default:
-				slog.Info("ignoring payment event", "subject", subject)
+				slog.InfoContext(ctx, "ignoring payment event", "subject", subject)
 			}
 
 			if handleErr != nil {
-				slog.Error("saga handle event", "error", handleErr, "subject", subject, "contract_id", payload.ContractID)
+				slog.ErrorContext(ctx, "saga handle event", "error", handleErr, "subject", subject, "contract_id", payload.ContractID)
 				msg.Nak()
 				continue
 			}

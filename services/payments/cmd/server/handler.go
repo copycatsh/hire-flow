@@ -51,7 +51,7 @@ func (h *PaymentHandler) HoldFunds(c *gin.Context) {
 	ctx := c.Request.Context()
 	tx, err := h.pool.Begin(ctx)
 	if err != nil {
-		slog.Error("hold: begin tx", "error", err)
+		slog.ErrorContext(ctx, "hold: begin tx", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -63,7 +63,7 @@ func (h *PaymentHandler) HoldFunds(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "wallet not found"})
 			return
 		}
-		slog.Error("hold: get wallet", "error", err)
+		slog.ErrorContext(ctx, "hold: get wallet", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -75,7 +75,7 @@ func (h *PaymentHandler) HoldFunds(c *gin.Context) {
 			Type:     "hold_failed",
 		})
 		if txErr != nil {
-			slog.Error("hold: create failed tx", "error", txErr)
+			slog.ErrorContext(ctx, "hold: create failed tx", "error", txErr)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
@@ -87,7 +87,7 @@ func (h *PaymentHandler) HoldFunds(c *gin.Context) {
 			"reason":      "insufficient funds",
 		})
 		if marshalErr != nil {
-			slog.Error("hold: marshal failed event payload", "error", marshalErr)
+			slog.ErrorContext(ctx, "hold: marshal failed event payload", "error", marshalErr)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
@@ -97,13 +97,13 @@ func (h *PaymentHandler) HoldFunds(c *gin.Context) {
 			EventType:     EventPaymentFailed,
 			Payload:       payload,
 		}); err != nil {
-			slog.Error("hold: insert failed outbox", "error", err)
+			slog.ErrorContext(ctx, "hold: insert failed outbox", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 
 		if err := tx.Commit(ctx); err != nil {
-			slog.Error("hold: commit failed tx", "error", err)
+			slog.ErrorContext(ctx, "hold: commit failed tx", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
@@ -114,7 +114,7 @@ func (h *PaymentHandler) HoldFunds(c *gin.Context) {
 
 	hold, err := h.holds.Create(ctx, tx, wallet.ID, req.Amount, req.ContractID)
 	if err != nil {
-		slog.Error("hold: create hold", "error", err)
+		slog.ErrorContext(ctx, "hold: create hold", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -126,14 +126,14 @@ func (h *PaymentHandler) HoldFunds(c *gin.Context) {
 		HoldID:   &hold.ID,
 	})
 	if err != nil {
-		slog.Error("hold: create tx", "error", err)
+		slog.ErrorContext(ctx, "hold: create tx", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	payload, err := json.Marshal(hold)
 	if err != nil {
-		slog.Error("hold: marshal payload", "error", err)
+		slog.ErrorContext(ctx, "hold: marshal payload", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -144,13 +144,13 @@ func (h *PaymentHandler) HoldFunds(c *gin.Context) {
 		Payload:       payload,
 	})
 	if err != nil {
-		slog.Error("hold: insert outbox", "error", err)
+		slog.ErrorContext(ctx, "hold: insert outbox", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		slog.Error("hold: commit", "error", err)
+		slog.ErrorContext(ctx, "hold: commit", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -172,7 +172,7 @@ func (h *PaymentHandler) ReleaseFunds(c *gin.Context) {
 	ctx := c.Request.Context()
 	tx, err := h.pool.Begin(ctx)
 	if err != nil {
-		slog.Error("release: begin tx", "error", err)
+		slog.ErrorContext(ctx, "release: begin tx", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -184,7 +184,7 @@ func (h *PaymentHandler) ReleaseFunds(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "hold not found"})
 			return
 		}
-		slog.Error("release: get hold", "error", err)
+		slog.ErrorContext(ctx, "release: get hold", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -195,7 +195,7 @@ func (h *PaymentHandler) ReleaseFunds(c *gin.Context) {
 	}
 
 	if err := h.holds.UpdateStatus(ctx, tx, hold.ID, "released"); err != nil {
-		slog.Error("release: update status", "error", err)
+		slog.ErrorContext(ctx, "release: update status", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -208,14 +208,14 @@ func (h *PaymentHandler) ReleaseFunds(c *gin.Context) {
 		HoldID:   &hold.ID,
 	})
 	if err != nil {
-		slog.Error("release: create tx", "error", err)
+		slog.ErrorContext(ctx, "release: create tx", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	payload, err := json.Marshal(hold)
 	if err != nil {
-		slog.Error("release: marshal payload", "error", err)
+		slog.ErrorContext(ctx, "release: marshal payload", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -226,13 +226,13 @@ func (h *PaymentHandler) ReleaseFunds(c *gin.Context) {
 		Payload:       payload,
 	})
 	if err != nil {
-		slog.Error("release: insert outbox", "error", err)
+		slog.ErrorContext(ctx, "release: insert outbox", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		slog.Error("release: commit", "error", err)
+		slog.ErrorContext(ctx, "release: commit", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -258,7 +258,7 @@ func (h *PaymentHandler) TransferFunds(c *gin.Context) {
 	ctx := c.Request.Context()
 	tx, err := h.pool.Begin(ctx)
 	if err != nil {
-		slog.Error("transfer: begin tx", "error", err)
+		slog.ErrorContext(ctx, "transfer: begin tx", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -270,7 +270,7 @@ func (h *PaymentHandler) TransferFunds(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "hold not found"})
 			return
 		}
-		slog.Error("transfer: get hold", "error", err)
+		slog.ErrorContext(ctx, "transfer: get hold", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -287,13 +287,13 @@ func (h *PaymentHandler) TransferFunds(c *gin.Context) {
 
 	source, err := h.wallets.GetByIDForUpdate(ctx, tx, hold.WalletID)
 	if err != nil {
-		slog.Error("transfer: get source wallet", "error", err)
+		slog.ErrorContext(ctx, "transfer: get source wallet", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	if source.Balance < hold.Amount {
-		slog.Warn("transfer: balance invariant violation",
+		slog.WarnContext(ctx, "transfer: balance invariant violation",
 			"wallet_id", source.ID, "balance", source.Balance, "hold_amount", hold.Amount)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
@@ -305,25 +305,25 @@ func (h *PaymentHandler) TransferFunds(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "recipient wallet not found"})
 			return
 		}
-		slog.Error("transfer: get recipient wallet", "error", err)
+		slog.ErrorContext(ctx, "transfer: get recipient wallet", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	if err := h.wallets.UpdateBalance(ctx, tx, source.ID, source.Balance-hold.Amount); err != nil {
-		slog.Error("transfer: debit source", "error", err)
+		slog.ErrorContext(ctx, "transfer: debit source", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	if err := h.wallets.UpdateBalance(ctx, tx, recipient.ID, recipient.Balance+hold.Amount); err != nil {
-		slog.Error("transfer: credit recipient", "error", err)
+		slog.ErrorContext(ctx, "transfer: credit recipient", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	if err := h.holds.UpdateStatus(ctx, tx, hold.ID, "transferred"); err != nil {
-		slog.Error("transfer: update hold status", "error", err)
+		slog.ErrorContext(ctx, "transfer: update hold status", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -335,7 +335,7 @@ func (h *PaymentHandler) TransferFunds(c *gin.Context) {
 		HoldID:   &hold.ID,
 	})
 	if err != nil {
-		slog.Error("transfer: create debit tx", "error", err)
+		slog.ErrorContext(ctx, "transfer: create debit tx", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -347,7 +347,7 @@ func (h *PaymentHandler) TransferFunds(c *gin.Context) {
 		HoldID:   &hold.ID,
 	})
 	if err != nil {
-		slog.Error("transfer: create credit tx", "error", err)
+		slog.ErrorContext(ctx, "transfer: create credit tx", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -360,7 +360,7 @@ func (h *PaymentHandler) TransferFunds(c *gin.Context) {
 		"contract_id":         hold.ContractID,
 	})
 	if err != nil {
-		slog.Error("transfer: marshal payload", "error", err)
+		slog.ErrorContext(ctx, "transfer: marshal payload", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -371,13 +371,13 @@ func (h *PaymentHandler) TransferFunds(c *gin.Context) {
 		Payload:       payload,
 	})
 	if err != nil {
-		slog.Error("transfer: insert outbox", "error", err)
+		slog.ErrorContext(ctx, "transfer: insert outbox", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		slog.Error("transfer: commit", "error", err)
+		slog.ErrorContext(ctx, "transfer: commit", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -404,7 +404,7 @@ func (h *PaymentHandler) GetWallet(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "wallet not found"})
 			return
 		}
-		slog.Error("get wallet", "error", err)
+		slog.ErrorContext(c.Request.Context(), "get wallet", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}

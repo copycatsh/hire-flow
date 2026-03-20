@@ -10,3 +10,4 @@ class Settings(BaseSettings):
     consumer_batch_size: int = 10
     consumer_max_deliver: int = 5
     batch_concurrency: int = 3
+    otel_endpoint: str = "localhost:4317"

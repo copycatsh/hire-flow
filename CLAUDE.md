@@ -43,6 +43,10 @@ omitzero in JSON tags, SplitSeq/FieldsSeq for iteration, wg.Go().
 | NATS monitoring  | 8222 | —         |
 | Qdrant HTTP      | 6333 | —         |
 | Qdrant gRPC      | 6334 | —         |
+| OTel Collector   | 4317 | gRPC      |
+| OTel Collector   | 4318 | HTTP      |
+| Prometheus       | 9090 | —         |
+| Grafana          | 3000 | —         |
 
 ## Go Conventions
 - Error handling: wrap with fmt.Errorf("operation: %w", err)

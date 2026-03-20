@@ -1,11 +1,11 @@
-import logging
 from uuid import UUID
 
+import structlog
 from qdrant_client import AsyncQdrantClient, models
 
 from src.models import MatchResult
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 COLLECTION_JOBS = "jobs"
 COLLECTION_PROFILES = "profiles"

@@ -1,13 +1,13 @@
 import asyncio
 import hashlib
-import logging
 from typing import Protocol
 
 import numpy as np
+import structlog
 
 from src.models import JobEvent, ProfileEvent
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 def build_job_text(event: JobEvent) -> str:

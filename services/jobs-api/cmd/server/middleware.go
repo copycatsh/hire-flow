@@ -48,7 +48,7 @@ func customErrorHandler(err error, c echo.Context) {
 			msg = m
 		}
 	default:
-		slog.Error("unhandled error", "error", err)
+		slog.ErrorContext(c.Request().Context(), "unhandled error", "error", err)
 	}
 
 	// TODO: log writeErr when c.JSON fails (review issue #4)
@@ -66,7 +66,7 @@ func requestLogger(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		req := c.Request()
-		slog.Info("request",
+		slog.InfoContext(req.Context(), "request",
 			"method", req.Method,
 			"path", req.URL.Path,
 			"status", c.Response().Status,

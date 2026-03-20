@@ -92,17 +92,17 @@ func (s *SagaOrchestrator) CreateContract(ctx context.Context, c Contract, miles
 	})
 	if err != nil {
 		// Hold failed — mark contract cancelled
-		slog.Error("saga create: hold failed", "error", err, "contract_id", c.ID)
+		slog.ErrorContext(ctx, "saga create: hold failed", "error", err, "contract_id", c.ID)
 		cancelTx, txErr := s.db.BeginTx(ctx, nil)
 		if txErr != nil {
-			slog.Error("saga create: compensation begin tx failed", "error", txErr, "contract_id", c.ID)
+			slog.ErrorContext(ctx, "saga create: compensation begin tx failed", "error", txErr, "contract_id", c.ID)
 		} else {
 			if err := s.contracts.UpdateStatus(ctx, cancelTx, c.ID, StatusPending, StatusCancelled); err != nil {
-				slog.Error("saga create: compensation update status failed", "error", err, "contract_id", c.ID)
+				slog.ErrorContext(ctx, "saga create: compensation update status failed", "error", err, "contract_id", c.ID)
 			}
 			payload, marshalErr := json.Marshal(c)
 			if marshalErr != nil {
-				slog.Error("saga create: compensation marshal failed", "error", marshalErr, "contract_id", c.ID)
+				slog.ErrorContext(ctx, "saga create: compensation marshal failed", "error", marshalErr, "contract_id", c.ID)
 			} else if err := s.outbox.Insert(ctx, cancelTx, OutboxEntry{
 				ID:            uuid.New().String(),
 				AggregateType: "contract",
@@ -110,10 +110,10 @@ func (s *SagaOrchestrator) CreateContract(ctx context.Context, c Contract, miles
 				EventType:     EventContractCancelled,
 				Payload:       payload,
 			}); err != nil {
-				slog.Error("saga create: compensation outbox insert failed", "error", err, "contract_id", c.ID)
+				slog.ErrorContext(ctx, "saga create: compensation outbox insert failed", "error", err, "contract_id", c.ID)
 			}
 			if err := cancelTx.Commit(); err != nil {
-				slog.Error("saga create: compensation commit failed", "error", err, "contract_id", c.ID)
+				slog.ErrorContext(ctx, "saga create: compensation commit failed", "error", err, "contract_id", c.ID)
 			}
 		}
 		c.Status = StatusCancelled

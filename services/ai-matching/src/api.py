@@ -1,8 +1,8 @@
 import asyncio
-import logging
 from uuid import UUID
 
 import numpy as np
+import structlog
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from src.embedding import Embedder, embed_async
@@ -15,7 +15,7 @@ from src.models import (
 )
 from src.qdrant_store import COLLECTION_JOBS, COLLECTION_PROFILES, QdrantStore
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 def _get_deps(request: Request) -> tuple[Embedder, QdrantStore]:
