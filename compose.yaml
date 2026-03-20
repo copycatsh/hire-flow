@@ -12,6 +12,8 @@ volumes:
   nats-data:
   qdrant-data:
   hf-cache:
+  prometheus-data:
+  grafana-data:
 
 services:
   # ── Infrastructure ──────────────────────────────────────────
@@ -125,6 +127,66 @@ services:
       timeout: 3s
       retries: 5
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.120.0
+    container_name: hire-flow-otel-collector
+    command: ["--config", "/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infra/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "13133:13133"
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config", "/etc/otelcol/config.yaml"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: hire-flow-prometheus
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - hire-flow
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: hire-flow-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - hire-flow
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # ── Core Services ───────────────────────────────────────────
 
   jobs-api:
@@ -135,6 +197,7 @@ services:
     environment:
       DATABASE_URL: "postgres://hire_flow:hire_flow_dev@postgres-jobs:5432/jobs_db?sslmode=disable"
       NATS_URL: "nats://nats:4222"
+      OTEL_ENDPOINT: "otel-collector:4317"
     ports:
       - "8001:8001"
     networks:
@@ -143,6 +206,8 @@ services:
       postgres-jobs:
         condition: service_healthy
       nats:
+        condition: service_healthy
+      otel-collector:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health > /dev/null 2>&1"]
@@ -159,6 +224,7 @@ services:
       QDRANT_HOST: "qdrant"
       QDRANT_PORT: "6333"
       HF_HOME: "/cache/huggingface"
+      OTEL_ENDPOINT: "otel-collector:4317"
     ports:
       - "8002:8002"
     volumes:
@@ -169,6 +235,8 @@ services:
       qdrant:
         condition: service_healthy
       nats:
+        condition: service_healthy
+      otel-collector:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
@@ -187,6 +255,7 @@ services:
       DATABASE_URL: hire_flow:hire_flow_dev@tcp(mysql:3306)/contracts_db?parseTime=true
       NATS_URL: nats://nats:4222
       PAYMENTS_URL: http://payments:8004
+      OTEL_ENDPOINT: "otel-collector:4317"
     networks:
       - hire-flow
     depends_on:
@@ -195,6 +264,8 @@ services:
       nats:
         condition: service_healthy
       payments:
+        condition: service_healthy
+      otel-collector:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8003/health > /dev/null 2>&1"]
@@ -212,12 +283,15 @@ services:
     environment:
       DATABASE_URL: postgres://hire_flow:hire_flow_dev@postgres-payments:5432/payments_db?sslmode=disable
       NATS_URL: nats://nats:4222
+      OTEL_ENDPOINT: "otel-collector:4317"
     networks:
       - hire-flow
     depends_on:
       postgres-payments:
         condition: service_healthy
       nats:
+        condition: service_healthy
+      otel-collector:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8004/health > /dev/null 2>&1"]
@@ -229,7 +303,8 @@ services:
 
   bff-client:
     build:
-      context: ./services/bff/client
+      context: .
+      dockerfile: services/bff/client/Dockerfile
     container_name: hire-flow-bff-client
     environment:
       JWT_SECRET: "dev-secret-change-in-production"
@@ -237,6 +312,7 @@ services:
       MATCHING_URL: "http://ai-matching:8002"
       CONTRACTS_URL: "http://contracts:8003"
       PAYMENTS_URL: "http://payments:8004"
+      OTEL_ENDPOINT: "otel-collector:4317"
     ports:
       - "8010:8010"
     networks:
@@ -250,6 +326,8 @@ services:
         condition: service_healthy
       payments:
         condition: service_healthy
+      otel-collector:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8010/health > /dev/null 2>&1"]
       interval: 5s
@@ -258,12 +336,18 @@ services:
 
   bff-freelancer:
     build:
-      context: ./services/bff/freelancer
+      context: .
+      dockerfile: services/bff/freelancer/Dockerfile
     container_name: hire-flow-bff-freelancer
+    environment:
+      OTEL_ENDPOINT: "otel-collector:4317"
     ports:
       - "8011:8011"
     networks:
       - hire-flow
+    depends_on:
+      otel-collector:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8011/health > /dev/null 2>&1"]
       interval: 5s
@@ -272,12 +356,18 @@ services:
 
   bff-admin:
     build:
-      context: ./services/bff/admin
+      context: .
+      dockerfile: services/bff/admin/Dockerfile
     container_name: hire-flow-bff-admin
+    environment:
+      OTEL_ENDPOINT: "otel-collector:4317"
     ports:
       - "8012:8012"
     networks:
       - hire-flow
+    depends_on:
+      otel-collector:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8012/health > /dev/null 2>&1"]
       interval: 5s

@@ -1,9 +1,11 @@
 FROM golang:1.25-alpine AS build
 WORKDIR /app
-COPY go.mod ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -o /server ./cmd/server
+COPY pkg/telemetry/go.mod pkg/telemetry/go.sum ./pkg/telemetry/
+COPY services/bff/freelancer/go.mod services/bff/freelancer/go.sum ./services/bff/freelancer/
+RUN cd services/bff/freelancer && go mod download
+COPY pkg/telemetry/ ./pkg/telemetry/
+COPY services/bff/freelancer/ ./services/bff/freelancer/
+RUN cd services/bff/freelancer && CGO_ENABLED=0 go build -o /server ./cmd/server
 
 FROM alpine:3.21
 RUN apk add --no-cache wget

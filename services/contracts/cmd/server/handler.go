@@ -61,7 +61,7 @@ func (h *ContractHandler) CreateContract(w http.ResponseWriter, r *http.Request)
 
 	result, err := h.saga.CreateContract(r.Context(), c, milestones)
 	if err != nil {
-		slog.Error("create contract", "error", err)
+		slog.ErrorContext(r.Context(), "create contract", "error", err)
 		if result.Status == StatusCancelled {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "payment hold failed"})
 			return
@@ -81,7 +81,7 @@ func (h *ContractHandler) AcceptContract(w http.ResponseWriter, r *http.Request)
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "contract not found"})
 			return
 		}
-		slog.Error("accept contract: get", "error", err)
+		slog.ErrorContext(r.Context(), "accept contract: get", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}
@@ -91,14 +91,14 @@ func (h *ContractHandler) AcceptContract(w http.ResponseWriter, r *http.Request)
 			writeJSON(w, http.StatusConflict, map[string]string{"error": "contract cannot be accepted in current status"})
 			return
 		}
-		slog.Error("accept contract", "error", err)
+		slog.ErrorContext(r.Context(), "accept contract", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}
 
 	c, err := h.contracts.GetByID(r.Context(), h.db, id)
 	if err != nil {
-		slog.Error("accept contract: refetch", "error", err)
+		slog.ErrorContext(r.Context(), "accept contract: refetch", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}
@@ -113,7 +113,7 @@ func (h *ContractHandler) CompleteContract(w http.ResponseWriter, r *http.Reques
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "contract not found"})
 			return
 		}
-		slog.Error("complete contract: get", "error", err)
+		slog.ErrorContext(r.Context(), "complete contract: get", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}
@@ -123,14 +123,14 @@ func (h *ContractHandler) CompleteContract(w http.ResponseWriter, r *http.Reques
 			writeJSON(w, http.StatusConflict, map[string]string{"error": "contract cannot be completed in current status"})
 			return
 		}
-		slog.Error("complete contract", "error", err)
+		slog.ErrorContext(r.Context(), "complete contract", "error", err)
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "payment service unavailable, retry later"})
 		return
 	}
 
 	c, err := h.contracts.GetByID(r.Context(), h.db, id)
 	if err != nil {
-		slog.Error("complete contract: refetch", "error", err)
+		slog.ErrorContext(r.Context(), "complete contract: refetch", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}
@@ -145,7 +145,7 @@ func (h *ContractHandler) CancelContract(w http.ResponseWriter, r *http.Request)
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "contract not found"})
 			return
 		}
-		slog.Error("cancel contract: get", "error", err)
+		slog.ErrorContext(r.Context(), "cancel contract: get", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}
@@ -155,14 +155,14 @@ func (h *ContractHandler) CancelContract(w http.ResponseWriter, r *http.Request)
 			writeJSON(w, http.StatusConflict, map[string]string{"error": "contract cannot be cancelled in current status"})
 			return
 		}
-		slog.Error("cancel contract", "error", err)
+		slog.ErrorContext(r.Context(), "cancel contract", "error", err)
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "payment service unavailable, retry later"})
 		return
 	}
 
 	c, err := h.contracts.GetByID(r.Context(), h.db, id)
 	if err != nil {
-		slog.Error("cancel contract: refetch", "error", err)
+		slog.ErrorContext(r.Context(), "cancel contract: refetch", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}
@@ -178,7 +178,7 @@ func (h *ContractHandler) GetContract(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "contract not found"})
 			return
 		}
-		slog.Error("get contract", "error", err)
+		slog.ErrorContext(r.Context(), "get contract", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}

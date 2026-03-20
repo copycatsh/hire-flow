@@ -1,7 +1,9 @@
 FROM golang:1.25-alpine AS build
 WORKDIR /app
+COPY pkg/telemetry/go.mod pkg/telemetry/go.sum ./pkg/telemetry/
 COPY services/contracts/go.mod services/contracts/go.sum ./services/contracts/
 RUN cd services/contracts && go mod download
+COPY pkg/telemetry/ ./pkg/telemetry/
 COPY services/contracts/ ./services/contracts/
 RUN cd services/contracts && CGO_ENABLED=0 go build -o /server ./cmd/server
 

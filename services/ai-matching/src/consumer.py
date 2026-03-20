@@ -1,7 +1,7 @@
 import asyncio
 import json
-import logging
 
+import structlog
 from pydantic import ValidationError
 
 from src.embedding import (
@@ -13,7 +13,7 @@ from src.embedding import (
 from src.models import JobEvent, ProfileEvent
 from src.qdrant_store import QdrantStore
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 _JOB_SUBJECTS = {"jobs.job.created", "jobs.job.updated"}
 _PROFILE_SUBJECTS = {"jobs.profile.created", "jobs.profile.updated"}

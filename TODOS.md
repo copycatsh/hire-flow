@@ -56,6 +56,18 @@
 - **Context:** Not needed until frontend work. Can be done in Traefik or BFF layer.
 - **Depends on:** M5 complete, triggered by M8
 
+### Add NATS message trace propagation
+- **What:** Inject W3C trace context into NATS message headers in outbox publisher, extract in consumers
+- **Why:** M6 implements HTTP-only trace propagation. Adding NATS tracing enables end-to-end async flow tracing (e.g., job.created → AI matching consumes → embedding stored)
+- **Context:** ~30 lines in pkg/outbox/ publisher + Python consumer. OTel SDK already initialized in both. Need to add trace context injection/extraction to NATS message headers.
+- **Depends on:** M6 complete
+
+### Add database query tracing
+- **What:** Add OTel tracing to database queries via pgx.QueryTracer (PostgreSQL) and otelsql (MySQL)
+- **Why:** Shows DB query duration inside traces — useful for debugging slow requests. Currently traces stop at HTTP handler level.
+- **Context:** pgx supports OTel tracing via QueryTracer interface. go-sql-driver/mysql has otelsql wrapper. Requires modifying connection setup in each service's main.go (~10 lines per service).
+- **Depends on:** M6 complete
+
 ## Completed
 
 ### Extract outbox pattern to pkg/outbox/

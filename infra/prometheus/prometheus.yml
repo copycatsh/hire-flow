@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "jobs-api"
+    static_configs:
+      - targets: ["jobs-api:8001"]
+  - job_name: "ai-matching"
+    static_configs:
+      - targets: ["ai-matching:8002"]
+  - job_name: "contracts"
+    static_configs:
+      - targets: ["contracts:8003"]
+  - job_name: "payments"
+    static_configs:
+      - targets: ["payments:8004"]
+  - job_name: "bff-client"
+    static_configs:
+      - targets: ["bff-client:8010"]
+  - job_name: "bff-freelancer"
+    static_configs:
+      - targets: ["bff-freelancer:8011"]
+  - job_name: "bff-admin"
+    static_configs:
+      - targets: ["bff-admin:8012"]

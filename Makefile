@@ -1,4 +1,4 @@
-.PHONY: up down health health-traefik logs test test-go test-python migrate build
+.PHONY: up down health health-traefik health-obs logs test test-go test-python migrate build
 
 # Start all services
 up:
@@ -56,6 +56,37 @@ health-traefik:
 		exit 1; \
 	else \
 		echo "OK: all routes healthy"; \
+	fi
+
+# Check observability stack
+health-obs:
+	@echo "Checking observability stack..."
+	@failed=0; \
+	for svc in \
+		"prometheus:9090/-/healthy" \
+		"grafana:3000/api/health"; \
+	do \
+		name=$${svc%%:*}; \
+		url="http://localhost:$${svc#*:}"; \
+		if curl -sf "$$url" > /dev/null 2>&1; then \
+			printf "  %-20s ✓ healthy\n" "$$name"; \
+		else \
+			printf "  %-20s ✗ unhealthy\n" "$$name"; \
+			failed=1; \
+		fi; \
+	done; \
+	if curl -sf http://localhost:13133/ > /dev/null 2>&1; then \
+		printf "  %-20s ✓ healthy\n" "otel-collector"; \
+	else \
+		printf "  %-20s ✗ unhealthy\n" "otel-collector"; \
+		failed=1; \
+	fi; \
+	echo ""; \
+	if [ "$$failed" = "1" ]; then \
+		echo "FAIL: some observability services are unhealthy"; \
+		exit 1; \
+	else \
+		echo "OK: observability stack healthy"; \
 	fi
 
 # Show logs for a specific service (usage: make logs s=jobs-api)

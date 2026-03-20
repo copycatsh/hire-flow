@@ -1,8 +1,10 @@
 import asyncio
-import logging
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from prometheus_client import make_asgi_app
 from qdrant_client import AsyncQdrantClient
 
 from src.api import create_router
@@ -10,17 +12,16 @@ from src.config import Settings
 from src.consumer import NATSConsumer
 from src.embedding import SentenceTransformerEmbedder
 from src.qdrant_store import QdrantStore
+from src.telemetry import init_telemetry, shutdown_telemetry
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings: Settings = app.state.settings
+
+    init_telemetry("ai-matching", settings.otel_endpoint)
 
     # Load embedding model
     embedder = SentenceTransformerEmbedder(settings.embedding_model)
@@ -59,6 +60,7 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
     await qdrant_client.close()
+    shutdown_telemetry()
     logger.info("AI Matching service stopped")
 
 
@@ -71,6 +73,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
+
+    FastAPIInstrumentor.instrument_app(app)
+
+    metrics_app = make_asgi_app()
+    app.mount("/metrics", metrics_app)
 
     router = create_router()
     app.include_router(router, prefix="/api/v1")

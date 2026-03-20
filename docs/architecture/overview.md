@@ -584,11 +584,11 @@ hire-flow/
 
 **Goal:** Proper CDC pipeline + logging + metrics + tracing.
 
-- [ ] Structured logging with `slog` (Go) / `structlog` (Python)
-- [ ] OpenTelemetry traces across services
-- [ ] Prometheus metrics endpoint per service
-- [ ] Grafana dashboards (basic: request rate, latency, errors)
-- [ ] Health check aggregation in Traefik
+- [x] Structured logging with `slog` (Go) / `structlog` (Python)
+- [x] OpenTelemetry traces across services
+- [x] Prometheus metrics endpoint per service
+- [x] Grafana dashboards (basic: request rate, latency, errors)
+- [x] Health check aggregation in Traefik
 - [ ] Replace polling outbox → Debezium CDC (if Kafka added)
 
 > **TODO: production-ready** — Jaeger/Tempo for trace storage, alerting rules.

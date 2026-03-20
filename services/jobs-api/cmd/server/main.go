@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/copycatsh/hire-flow/pkg/outbox"
+	"github.com/copycatsh/hire-flow/pkg/telemetry"
 	"github.com/copycatsh/hire-flow/services/jobs-api/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/pressly/goose/v3"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -31,22 +33,39 @@ func main() {
 		os.Exit(1)
 	}
 
+	otelEndpoint := cmp.Or(os.Getenv("OTEL_ENDPOINT"), "localhost:4317")
+
+	slog.SetDefault(slog.New(
+		telemetry.NewTracedHandler(slog.NewJSONHandler(os.Stdout, nil)),
+	))
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	shutdownTelemetry, err := telemetry.Init(ctx, "jobs-api", otelEndpoint)
+	if err != nil {
+		slog.ErrorContext(ctx, "telemetry init", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := shutdownTelemetry(context.Background()); err != nil {
+			slog.Error("telemetry shutdown", "error", err)
+		}
+	}()
 
 	// Run migrations
 	sqlDB, err := sql.Open("pgx", dbURL)
 	if err != nil {
-		slog.Error("open sql db for migrations", "error", err)
+		slog.ErrorContext(ctx, "open sql db for migrations", "error", err)
 		os.Exit(1)
 	}
 	goose.SetBaseFS(migrations.FS)
 	if err := goose.SetDialect("postgres"); err != nil {
-		slog.Error("goose set dialect", "error", err)
+		slog.ErrorContext(ctx, "goose set dialect", "error", err)
 		os.Exit(1)
 	}
 	if err := goose.Up(sqlDB, "."); err != nil {
-		slog.Error("goose up", "error", err)
+		slog.ErrorContext(ctx, "goose up", "error", err)
 		os.Exit(1)
 	}
 	sqlDB.Close()
@@ -54,7 +73,7 @@ func main() {
 	// pgxpool
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
-		slog.Error("pgxpool new", "error", err)
+		slog.ErrorContext(ctx, "pgxpool new", "error", err)
 		os.Exit(1)
 	}
 	defer pool.Close()
@@ -62,13 +81,13 @@ func main() {
 	// NATS
 	nc, err := NewNATSClient(natsURL)
 	if err != nil {
-		slog.Error("nats connect", "error", err)
+		slog.ErrorContext(ctx, "nats connect", "error", err)
 		os.Exit(1)
 	}
 	defer nc.Close()
 
 	if err := nc.EnsureStream(ctx); err != nil {
-		slog.Error("nats ensure stream", "error", err)
+		slog.ErrorContext(ctx, "nats ensure stream", "error", err)
 		os.Exit(1)
 	}
 
@@ -82,11 +101,13 @@ func main() {
 	e.HideBanner = true
 	e.HTTPErrorHandler = customErrorHandler
 	e.Use(requestLogger)
+	e.Use(otelecho.Middleware("jobs-api"))
 
 	// Routes
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
+	e.GET("/metrics", echo.WrapHandler(telemetry.MetricsHandler()))
 
 	jobHandler := &JobHandler{pool: pool, jobs: jobStore, outbox: outboxStore}
 	jobHandler.RegisterRoutes(e.Group("/api/v1/jobs"))
@@ -104,22 +125,22 @@ func main() {
 
 	// Start server
 	go func() {
-		slog.Info("starting jobs-api", "port", port)
+		slog.InfoContext(ctx, "starting jobs-api", "port", port)
 		if err := e.Start(port); err != nil && err != http.ErrServerClosed {
-			slog.Error("server failed", "error", err)
+			slog.ErrorContext(ctx, "server failed", "error", err)
 			stop()
 		}
 	}()
 
 	// Graceful shutdown
 	<-ctx.Done()
-	slog.Info("shutting down")
+	slog.InfoContext(ctx, "shutting down")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := e.Shutdown(shutdownCtx); err != nil {
-		slog.Error("echo shutdown", "error", err)
+		slog.ErrorContext(shutdownCtx, "echo shutdown", "error", err)
 	}
 
 	wg.Wait()
