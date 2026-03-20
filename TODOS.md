@@ -44,6 +44,18 @@
 - **Context:** Payments hold `expires_at` column is a safety net. This timeout is business-logic enforcement.
 - **Depends on:** M4 complete
 
+### Add rate limiter bucket cleanup to BFF
+- **What:** Background goroutine evicts stale rate limiter buckets (users not seen in 1h)
+- **Why:** Without cleanup, in-memory map grows unbounded with unique user_ids
+- **Context:** MVP uses hardcoded test users (bounded). Production needs this or a distributed rate limiter (Redis).
+- **Depends on:** M5 complete
+
+### Add CORS middleware to BFFs
+- **What:** Add CORS headers (Access-Control-*) to BFF responses for browser requests
+- **Why:** React SPAs (M8+) will be blocked by browser CORS policy without this
+- **Context:** Not needed until frontend work. Can be done in Traefik or BFF layer.
+- **Depends on:** M5 complete, triggered by M8
+
 ## Completed
 
 ### Extract outbox pattern to pkg/outbox/

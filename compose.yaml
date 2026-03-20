@@ -231,10 +231,25 @@ services:
     build:
       context: ./services/bff/client
     container_name: hire-flow-bff-client
+    environment:
+      JWT_SECRET: "dev-secret-change-in-production"
+      JOBS_URL: "http://jobs-api:8001"
+      MATCHING_URL: "http://ai-matching:8002"
+      CONTRACTS_URL: "http://contracts:8003"
+      PAYMENTS_URL: "http://payments:8004"
     ports:
       - "8010:8010"
     networks:
       - hire-flow
+    depends_on:
+      jobs-api:
+        condition: service_healthy
+      ai-matching:
+        condition: service_healthy
+      contracts:
+        condition: service_healthy
+      payments:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8010/health > /dev/null 2>&1"]
       interval: 5s
