@@ -1,9 +1,9 @@
 FROM golang:1.25-alpine AS build
 WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -o /server ./cmd/server
+COPY services/contracts/go.mod services/contracts/go.sum ./services/contracts/
+RUN cd services/contracts && go mod download
+COPY services/contracts/ ./services/contracts/
+RUN cd services/contracts && CGO_ENABLED=0 go build -o /server ./cmd/server
 
 FROM alpine:3.21
 RUN apk add --no-cache wget

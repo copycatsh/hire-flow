@@ -26,6 +26,24 @@
 - **Context:** The `expires_at` column exists in the holds table from M3, but no enforcement job runs. The saga orchestrator (M4) is the primary timeout handler; this job catches cases where the orchestrator itself fails.
 - **Depends on:** M3 complete, triggered by M4
 
+### Add milestone-level completion to contracts
+- **What:** Extend `PUT /contracts/{id}/milestones/{mid}/complete` for individual milestone completion with proportional payment transfer
+- **Why:** M4 ships contract-level completion (all-or-nothing). Real contracts need incremental milestone payments.
+- **Context:** Milestones table exists with `amount` and `status` columns. Schema is forward-compatible. Saga orchestrator needs per-milestone transfer logic.
+- **Depends on:** M4 complete
+
+### Add background retry for stuck saga states
+- **What:** Background goroutine retries contracts in COMPLETING/DECLINING for > 5 minutes by re-calling Payments HTTP
+- **Why:** M4 uses idempotent manual retry. Without background retry, contracts stay stuck if no one retries. Safety net for saga failures.
+- **Context:** Similar to hold expiry TODO — both are saga recovery safety nets. Could be combined into single "saga recovery" job.
+- **Depends on:** M4 complete
+
+### Add 48h acceptance timeout for contracts
+- **What:** Background job auto-cancels contracts in AWAITING_ACCEPT for > 48 hours, triggering compensation (release hold)
+- **Why:** Architecture spec says "WaitForAcceptance (timeout: 48h)". Without this, ignored contracts hold funds indefinitely.
+- **Context:** Payments hold `expires_at` column is a safety net. This timeout is business-logic enforcement.
+- **Depends on:** M4 complete
+
 ## Completed
 
 ### Extract outbox pattern to pkg/outbox/
