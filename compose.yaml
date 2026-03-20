@@ -178,14 +178,23 @@ services:
 
   contracts:
     build:
-      context: ./services/contracts
+      context: .
+      dockerfile: services/contracts/Dockerfile
     container_name: hire-flow-contracts
     ports:
       - "8003:8003"
+    environment:
+      DATABASE_URL: hire_flow:hire_flow_dev@tcp(mysql:3306)/contracts_db?parseTime=true
+      NATS_URL: nats://nats:4222
+      PAYMENTS_URL: http://payments:8004
     networks:
       - hire-flow
     depends_on:
       mysql:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      payments:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8003/health > /dev/null 2>&1"]
