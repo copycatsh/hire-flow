@@ -68,7 +68,19 @@ afterEach(() => {
 });
 
 describe("JobList", () => {
-  it("renders jobs", async () => {
+  it("shows loading state", () => {
+    vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise(() => {}));
+
+    render(
+      <TestWrapper>
+        <JobList />
+      </TestWrapper>,
+    );
+
+    expect(screen.getByText("Loading jobs...")).toBeInTheDocument();
+  });
+
+  it("renders job cards with links to detail", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify(mockJobs), {
         status: 200,
@@ -86,6 +98,12 @@ describe("JobList", () => {
       expect(screen.getByText("React Developer")).toBeInTheDocument();
     });
     expect(screen.getByText("Go Backend Engineer")).toBeInTheDocument();
+
+    const jobLinks = screen.getAllByRole("link").filter((a) => {
+      const href = a.getAttribute("href");
+      return href?.startsWith("/jobs/") && href !== "/jobs/new";
+    });
+    expect(jobLinks).toHaveLength(2);
   });
 
   it("shows empty state", async () => {

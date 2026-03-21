@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/copycatsh/hire-flow/pkg/bff"
 	"github.com/copycatsh/hire-flow/pkg/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -46,7 +47,7 @@ func main() {
 		}
 	}()
 
-	auth := &AuthConfig{
+	auth := &bff.AuthConfig{
 		Secret:          []byte(jwtSecret),
 		AccessTokenTTL:  15 * time.Minute,
 		RefreshTokenTTL: 7 * 24 * time.Hour,
@@ -57,12 +58,12 @@ func main() {
 		Timeout:   10 * time.Second,
 		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}
-	jobsClient := &ServiceClient{BaseURL: jobsURL, HTTP: httpClient, Name: "jobs-api"}
-	matchingClient := &ServiceClient{BaseURL: matchingURL, HTTP: httpClient, Name: "ai-matching"}
-	contractsClient := &ServiceClient{BaseURL: contractsURL, HTTP: httpClient, Name: "contracts"}
-	paymentsClient := &ServiceClient{BaseURL: paymentsURL, HTTP: httpClient, Name: "payments"}
+	jobsClient := &bff.ServiceClient{BaseURL: jobsURL, HTTP: httpClient, Name: "jobs-api"}
+	matchingClient := &bff.ServiceClient{BaseURL: matchingURL, HTTP: httpClient, Name: "ai-matching"}
+	contractsClient := &bff.ServiceClient{BaseURL: contractsURL, HTTP: httpClient, Name: "contracts"}
+	paymentsClient := &bff.ServiceClient{BaseURL: paymentsURL, HTTP: httpClient, Name: "payments"}
 
-	rateLimiter := NewRateLimiter(100, 20)
+	rateLimiter := bff.NewRateLimiter(100, 20)
 
 	mux := http.NewServeMux()
 
@@ -72,7 +73,7 @@ func main() {
 	})
 	mux.Handle("GET /metrics", telemetry.MetricsHandler())
 
-	authHandler := &AuthHandler{auth: auth}
+	authHandler := &bff.AuthHandler{Auth: auth}
 	authHandler.RegisterRoutes(mux)
 
 	apiMux := http.NewServeMux()
@@ -92,7 +93,7 @@ func main() {
 	protected := auth.JWTMiddleware(rateLimiter.Middleware(apiMux))
 	mux.Handle("/api/", protected)
 
-	handler := otelhttp.NewHandler(RequestLogger(mux), "bff-client")
+	handler := otelhttp.NewHandler(bff.RequestLogger(mux), "bff-client")
 
 	srv := &http.Server{
 		Addr:         port,

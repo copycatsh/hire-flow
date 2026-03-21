@@ -18,6 +18,7 @@ import { Route as AuthJobsIndexRouteImport } from "./routes/_auth/jobs.index"
 import { Route as AuthContractsIndexRouteImport } from "./routes/_auth/contracts.index"
 import { Route as AuthJobsNewRouteImport } from "./routes/_auth/jobs.new"
 import { Route as AuthJobsIdRouteImport } from "./routes/_auth/jobs.$id"
+import { Route as AuthContractsNewRouteImport } from "./routes/_auth/contracts.new"
 import { Route as AuthContractsIdRouteImport } from "./routes/_auth/contracts.$id"
 import { Route as AuthJobsIdMatchesRouteImport } from "./routes/_auth/jobs_.$id.matches"
 
@@ -65,6 +66,11 @@ const AuthJobsIdRoute = AuthJobsIdRouteImport.update({
   path: "/jobs/$id",
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthContractsNewRoute = AuthContractsNewRouteImport.update({
+  id: "/contracts/new",
+  path: "/contracts/new",
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthContractsIdRoute = AuthContractsIdRouteImport.update({
   id: "/contracts/$id",
   path: "/contracts/$id",
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   "/settings": typeof AuthSettingsRoute
   "/wallet": typeof AuthWalletRoute
   "/contracts/$id": typeof AuthContractsIdRoute
+  "/contracts/new": typeof AuthContractsNewRoute
   "/jobs/$id": typeof AuthJobsIdRoute
   "/jobs/new": typeof AuthJobsNewRoute
   "/contracts/": typeof AuthContractsIndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   "/settings": typeof AuthSettingsRoute
   "/wallet": typeof AuthWalletRoute
   "/contracts/$id": typeof AuthContractsIdRoute
+  "/contracts/new": typeof AuthContractsNewRoute
   "/jobs/$id": typeof AuthJobsIdRoute
   "/jobs/new": typeof AuthJobsNewRoute
   "/contracts": typeof AuthContractsIndexRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   "/_auth/settings": typeof AuthSettingsRoute
   "/_auth/wallet": typeof AuthWalletRoute
   "/_auth/contracts/$id": typeof AuthContractsIdRoute
+  "/_auth/contracts/new": typeof AuthContractsNewRoute
   "/_auth/jobs/$id": typeof AuthJobsIdRoute
   "/_auth/jobs/new": typeof AuthJobsNewRoute
   "/_auth/contracts/": typeof AuthContractsIndexRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
     | "/settings"
     | "/wallet"
     | "/contracts/$id"
+    | "/contracts/new"
     | "/jobs/$id"
     | "/jobs/new"
     | "/contracts/"
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
     | "/settings"
     | "/wallet"
     | "/contracts/$id"
+    | "/contracts/new"
     | "/jobs/$id"
     | "/jobs/new"
     | "/contracts"
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
     | "/_auth/settings"
     | "/_auth/wallet"
     | "/_auth/contracts/$id"
+    | "/_auth/contracts/new"
     | "/_auth/jobs/$id"
     | "/_auth/jobs/new"
     | "/_auth/contracts/"
@@ -225,6 +237,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AuthJobsIdRouteImport
       parentRoute: typeof AuthRoute
     }
+    "/_auth/contracts/new": {
+      id: "/_auth/contracts/new"
+      path: "/contracts/new"
+      fullPath: "/contracts/new"
+      preLoaderRoute: typeof AuthContractsNewRouteImport
+      parentRoute: typeof AuthRoute
+    }
     "/_auth/contracts/$id": {
       id: "/_auth/contracts/$id"
       path: "/contracts/$id"
@@ -246,6 +265,7 @@ interface AuthRouteChildren {
   AuthSettingsRoute: typeof AuthSettingsRoute
   AuthWalletRoute: typeof AuthWalletRoute
   AuthContractsIdRoute: typeof AuthContractsIdRoute
+  AuthContractsNewRoute: typeof AuthContractsNewRoute
   AuthJobsIdRoute: typeof AuthJobsIdRoute
   AuthJobsNewRoute: typeof AuthJobsNewRoute
   AuthContractsIndexRoute: typeof AuthContractsIndexRoute
@@ -257,6 +277,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthSettingsRoute: AuthSettingsRoute,
   AuthWalletRoute: AuthWalletRoute,
   AuthContractsIdRoute: AuthContractsIdRoute,
+  AuthContractsNewRoute: AuthContractsNewRoute,
   AuthJobsIdRoute: AuthJobsIdRoute,
   AuthJobsNewRoute: AuthJobsNewRoute,
   AuthContractsIndexRoute: AuthContractsIndexRoute,

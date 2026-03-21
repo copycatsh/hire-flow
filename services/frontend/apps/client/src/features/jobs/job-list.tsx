@@ -16,24 +16,30 @@ function formatBudget(amount: number) {
   }).format(amount / 100);
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86_400_000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 30) return `${days}d ago`;
+  return `${Math.floor(days / 30)}mo ago`;
 }
 
 export function JobList() {
   const { data: jobs, isLoading, isError, error } = useJobs();
 
   if (isLoading) {
-    return <p>Loading jobs...</p>;
+    return (
+      <div className="flex items-center gap-2 text-foreground-secondary">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        Loading jobs...
+      </div>
+    );
   }
 
   if (isError) {
     return (
-      <div className="rounded-sm bg-error-bg px-4 py-2 text-sm text-error">
+      <div className="rounded-md bg-error-bg px-4 py-3 text-sm text-error">
         {error.message}
       </div>
     );
@@ -41,13 +47,13 @@ export function JobList() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-8 flex items-center justify-between">
         <h1 className="font-display text-2xl font-semibold tracking-tight">
           Your Jobs
         </h1>
         <Link
           to="/jobs/new"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+          className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-hover"
         >
           + New Job
         </Link>
@@ -58,46 +64,32 @@ export function JobList() {
           No jobs yet. Create your first job to get started.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-sm border border-border bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-background-muted text-left text-xs uppercase tracking-wider text-foreground-secondary">
-                <th className="px-4 py-3 font-medium">Title</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Budget</th>
-                <th className="px-4 py-3 font-medium">Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jobs.map((job) => (
-                <tr key={job.id} className="border-b border-border">
-                  <td className="px-4 py-3 font-medium">
-                    <Link
-                      to="/jobs/$id"
-                      params={{ id: job.id }}
-                      className="hover:text-primary"
-                    >
-                      {job.title}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[job.status]}`}
-                    >
-                      {job.status.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-mono">
-                    {formatBudget(job.budget_min)} &ndash;{" "}
-                    {formatBudget(job.budget_max)}
-                  </td>
-                  <td className="px-4 py-3 font-mono">
-                    {formatDate(job.created_at)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {jobs.map((job) => (
+            <Link
+              key={job.id}
+              to="/jobs/$id"
+              params={{ id: job.id }}
+              className="rounded-md border border-border bg-background p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] hover:border-primary-500"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-display text-base font-semibold tracking-tight text-foreground">
+                  {job.title}
+                </h3>
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[job.status]}`}
+                >
+                  {job.status.replace("_", " ")}
+                </span>
+              </div>
+              <p className="mt-4 text-sm text-foreground-secondary">
+                {timeAgo(job.created_at)}
+              </p>
+              <p className="mt-3 font-mono text-lg font-semibold text-foreground">
+                {formatBudget(job.budget_min)} &ndash; {formatBudget(job.budget_max)}
+              </p>
+            </Link>
+          ))}
         </div>
       )}
     </div>

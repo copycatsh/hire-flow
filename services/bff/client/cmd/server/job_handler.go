@@ -3,10 +3,12 @@ package main
 import (
 	"net/http"
 	"net/url"
+
+	"github.com/copycatsh/hire-flow/pkg/bff"
 )
 
 type JobHandler struct {
-	jobs *ServiceClient
+	jobs *bff.ServiceClient
 }
 
 func (h *JobHandler) RegisterRoutes(mux *http.ServeMux) {

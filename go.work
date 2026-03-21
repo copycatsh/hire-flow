@@ -1,6 +1,7 @@
 go 1.25.0
 
 use (
+	./pkg/bff
 	./pkg/outbox
 	./pkg/telemetry
 	./services/bff/admin

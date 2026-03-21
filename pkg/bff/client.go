@@ -1,4 +1,4 @@
-package main
+package bff
 
 import (
 	"bytes"
@@ -45,7 +45,7 @@ func (c *ServiceClient) Do(ctx context.Context, method, path string, body any, d
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	if userID, ok := ctx.Value(ctxKeyUserID).(string); ok && userID != "" {
+	if userID := UserIDFrom(ctx); userID != "" {
 		req.Header.Set("X-User-ID", userID)
 	}
 
@@ -81,21 +81,21 @@ func (c *ServiceClient) Forward(ctx context.Context, w http.ResponseWriter, meth
 	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, body)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create upstream request", "service", c.Name, "error", err)
-		writeError(w, http.StatusBadGateway, fmt.Sprintf("%s: service unavailable", c.Name))
+		WriteError(w, http.StatusBadGateway, fmt.Sprintf("%s: service unavailable", c.Name))
 		return
 	}
 
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if userID, ok := ctx.Value(ctxKeyUserID).(string); ok && userID != "" {
+	if userID := UserIDFrom(ctx); userID != "" {
 		req.Header.Set("X-User-ID", userID)
 	}
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		slog.ErrorContext(ctx, "upstream request failed", "service", c.Name, "method", method, "path", path, "error", err)
-		writeError(w, http.StatusBadGateway, fmt.Sprintf("%s: service unavailable", c.Name))
+		WriteError(w, http.StatusBadGateway, fmt.Sprintf("%s: service unavailable", c.Name))
 		return
 	}
 	defer resp.Body.Close()
@@ -105,16 +105,4 @@ func (c *ServiceClient) Forward(ctx context.Context, w http.ResponseWriter, meth
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		slog.ErrorContext(ctx, "forwarding response body", "service", c.Name, "error", err)
 	}
-}
-
-func writeError(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
 }

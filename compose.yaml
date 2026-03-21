@@ -341,12 +341,23 @@ services:
       dockerfile: services/bff/freelancer/Dockerfile
     container_name: hire-flow-bff-freelancer
     environment:
+      JWT_SECRET: "dev-secret-change-in-production"
+      MATCHING_URL: "http://ai-matching:8002"
+      CONTRACTS_URL: "http://contracts:8003"
+      PAYMENTS_URL: "http://payments:8004"
       OTEL_ENDPOINT: "otel-collector:4317"
+      COOKIE_SECURE: "false"
     ports:
       - "8011:8011"
     networks:
       - hire-flow
     depends_on:
+      ai-matching:
+        condition: service_healthy
+      contracts:
+        condition: service_healthy
+      payments:
+        condition: service_healthy
       otel-collector:
         condition: service_healthy
     healthcheck:

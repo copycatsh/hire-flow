@@ -45,8 +45,8 @@ describe("MatchList", () => {
       expect(screen.getByText("71%")).toBeTruthy();
     });
 
-    expect(screen.getByText(/abc12345/)).toBeTruthy();
-    expect(screen.getByText(/def67890/)).toBeTruthy();
+    expect(screen.getByText("Candidate #1")).toBeTruthy();
+    expect(screen.getByText("Candidate #2")).toBeTruthy();
   });
 
   it("shows empty state", async () => {

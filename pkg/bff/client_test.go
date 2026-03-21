@@ -1,4 +1,4 @@
-package main
+package bff
 
 import (
 	"context"
@@ -27,7 +27,7 @@ func TestDoRequest_Success(t *testing.T) {
 		Name:    "test-service",
 	}
 
-	ctx := withUserID(t.Context(), "user-42")
+	ctx := WithUserID(t.Context(), "user-42")
 
 	var dest struct {
 		ID   string `json:"id"`
@@ -82,4 +82,44 @@ func TestDoRequest_Timeout(t *testing.T) {
 	err := client.Do(ctx, http.MethodGet, "/slow", nil, nil)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+func TestForward_Success(t *testing.T) {
+	var gotUserID string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUserID = r.Header.Get("X-User-ID")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	client := &ServiceClient{
+		BaseURL: srv.URL,
+		HTTP:    srv.Client(),
+		Name:    "test-service",
+	}
+
+	ctx := WithUserID(t.Context(), "user-42")
+	rec := httptest.NewRecorder()
+	client.Forward(ctx, rec, http.MethodGet, "/items", nil)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "user-42", gotUserID)
+}
+
+func TestForward_ServiceDown(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srv.Close()
+
+	client := &ServiceClient{
+		BaseURL: srv.URL,
+		HTTP:    srv.Client(),
+		Name:    "test-service",
+	}
+
+	rec := httptest.NewRecorder()
+	client.Forward(t.Context(), rec, http.MethodGet, "/items", nil)
+
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
 }

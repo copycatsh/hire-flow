@@ -1,9 +1,11 @@
 FROM golang:1.25-alpine AS build
 WORKDIR /app
 COPY pkg/telemetry/go.mod pkg/telemetry/go.sum ./pkg/telemetry/
+COPY pkg/bff/go.mod pkg/bff/go.sum ./pkg/bff/
 COPY services/bff/client/go.mod services/bff/client/go.sum ./services/bff/client/
 RUN cd services/bff/client && go mod download
 COPY pkg/telemetry/ ./pkg/telemetry/
+COPY pkg/bff/ ./pkg/bff/
 COPY services/bff/client/ ./services/bff/client/
 RUN cd services/bff/client && CGO_ENABLED=0 go build -o /server ./cmd/server
 

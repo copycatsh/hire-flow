@@ -140,6 +140,115 @@ func TestHandler_AcceptContract_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+func TestHandler_ListContracts_ByClientID(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctx := t.Context()
+	db := setupMySQL(t, ctx)
+	contractStore := &MySQLContractStore{}
+
+	saga := NewSagaOrchestrator(db, contractStore, &MySQLMilestoneStore{}, &MySQLOutboxStore{}, nil)
+	h := &ContractHandler{saga: saga, contracts: contractStore, milestones: &MySQLMilestoneStore{}, db: db}
+	r := newTestRouter(h)
+
+	clientID := uuid.New().String()
+	for i := range 3 {
+		c := Contract{
+			ID: uuid.New().String(), ClientID: clientID, FreelancerID: uuid.New().String(),
+			Title: "Contract " + strings.Repeat("x", i), Amount: 10000, Currency: "USD", Status: StatusPending,
+			ClientWalletID: uuid.New().String(), FreelancerWalletID: uuid.New().String(),
+		}
+		require.NoError(t, contractStore.Create(ctx, db, c))
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/contracts?client_id="+clientID, nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp []Contract
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Len(t, resp, 3)
+	for _, c := range resp {
+		assert.Equal(t, clientID, c.ClientID)
+	}
+}
+
+func TestHandler_ListContracts_ByFreelancerID(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctx := t.Context()
+	db := setupMySQL(t, ctx)
+	contractStore := &MySQLContractStore{}
+
+	saga := NewSagaOrchestrator(db, contractStore, &MySQLMilestoneStore{}, &MySQLOutboxStore{}, nil)
+	h := &ContractHandler{saga: saga, contracts: contractStore, milestones: &MySQLMilestoneStore{}, db: db}
+	r := newTestRouter(h)
+
+	freelancerID := uuid.New().String()
+	c := Contract{
+		ID: uuid.New().String(), ClientID: uuid.New().String(), FreelancerID: freelancerID,
+		Title: "Freelancer Contract", Amount: 20000, Currency: "USD", Status: StatusActive,
+		ClientWalletID: uuid.New().String(), FreelancerWalletID: uuid.New().String(),
+	}
+	require.NoError(t, contractStore.Create(ctx, db, c))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/contracts?freelancer_id="+freelancerID, nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp []Contract
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Len(t, resp, 1)
+	assert.Equal(t, freelancerID, resp[0].FreelancerID)
+}
+
+func TestHandler_ListContracts_EmptyResult(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctx := t.Context()
+	db := setupMySQL(t, ctx)
+	contractStore := &MySQLContractStore{}
+
+	saga := NewSagaOrchestrator(db, contractStore, &MySQLMilestoneStore{}, &MySQLOutboxStore{}, nil)
+	h := &ContractHandler{saga: saga, contracts: contractStore, milestones: &MySQLMilestoneStore{}, db: db}
+	r := newTestRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/contracts?client_id="+uuid.New().String(), nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp []Contract
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Len(t, resp, 0)
+}
+
+func TestHandler_ListContracts_MissingFilter(t *testing.T) {
+	h := &ContractHandler{}
+	r := newTestRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/contracts", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, "client_id or freelancer_id required", resp["error"])
+}
+
 func TestHandler_AcceptContract_WrongStatus(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")

@@ -59,6 +59,53 @@ func (s *MySQLContractStore) UpdateStatus(ctx context.Context, db DBTX, id strin
 	return nil
 }
 
+func (s *MySQLContractStore) List(ctx context.Context, db DBTX, filter ListFilter) ([]Contract, error) {
+	query := `SELECT id, client_id, freelancer_id, title, description, amount, currency, status, client_wallet_id, freelancer_wallet_id, hold_id, created_at, updated_at FROM contracts WHERE 1=1`
+	args := []any{}
+
+	if filter.ClientID != "" {
+		query += " AND client_id = ?"
+		args = append(args, filter.ClientID)
+	}
+	if filter.FreelancerID != "" {
+		query += " AND freelancer_id = ?"
+		args = append(args, filter.FreelancerID)
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	limit := filter.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	query += " LIMIT ?"
+	args = append(args, limit)
+
+	if filter.Offset > 0 {
+		query += " OFFSET ?"
+		args = append(args, filter.Offset)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("contract list: %w", err)
+	}
+	defer rows.Close()
+
+	var contracts []Contract
+	for rows.Next() {
+		var c Contract
+		if err := rows.Scan(&c.ID, &c.ClientID, &c.FreelancerID, &c.Title, &c.Description, &c.Amount, &c.Currency, &c.Status, &c.ClientWalletID, &c.FreelancerWalletID, &c.HoldID, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("contract list scan: %w", err)
+		}
+		contracts = append(contracts, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("contract list rows: %w", err)
+	}
+	return contracts, nil
+}
+
 func (s *MySQLContractStore) SetHoldID(ctx context.Context, db DBTX, id string, holdID string) error {
 	_, err := db.ExecContext(ctx,
 		`UPDATE contracts SET hold_id = ? WHERE id = ?`,

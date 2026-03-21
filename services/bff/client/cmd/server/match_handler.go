@@ -3,10 +3,12 @@ package main
 import (
 	"net/http"
 	"net/url"
+
+	"github.com/copycatsh/hire-flow/pkg/bff"
 )
 
 type MatchHandler struct {
-	matching *ServiceClient
+	matching *bff.ServiceClient
 }
 
 func (h *MatchHandler) RegisterRoutes(mux *http.ServeMux) {

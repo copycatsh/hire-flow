@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCreateContract } from "./queries";
+import { useWallet } from "@/features/wallet/queries";
 
 interface Props {
   freelancerId?: string;
@@ -12,6 +13,7 @@ export function ProposeContractForm({ freelancerId, jobId }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const createContract = useCreateContract();
+  const { data: wallet, isLoading: walletLoading } = useWallet();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -21,7 +23,7 @@ export function ProposeContractForm({ freelancerId, jobId }: Props) {
     e.preventDefault();
 
     const amountCents = Math.round(Number(amount) * 100);
-    if (!user || !freelancerId || amountCents <= 0) return;
+    if (!user || !freelancerId || !wallet || amountCents <= 0) return;
 
     createContract.mutate(
       {
@@ -31,7 +33,7 @@ export function ProposeContractForm({ freelancerId, jobId }: Props) {
         description,
         amount: amountCents,
         currency: "USD",
-        client_wallet_id: user.user_id,
+        client_wallet_id: wallet.id,
         freelancer_wallet_id: freelancerId,
       },
       {
@@ -46,7 +48,7 @@ export function ProposeContractForm({ freelancerId, jobId }: Props) {
 
       {freelancerId && (
         <p className="mt-2 text-sm text-foreground-secondary">
-          Freelancer: {freelancerId.slice(0, 8)}...
+          Candidate: {freelancerId.slice(0, 8)}...
         </p>
       )}
 
@@ -108,7 +110,7 @@ export function ProposeContractForm({ freelancerId, jobId }: Props) {
 
         <button
           type="submit"
-          disabled={createContract.isPending || !freelancerId}
+          disabled={createContract.isPending || !freelancerId || walletLoading || !wallet}
           className="mt-1 w-full rounded-md bg-primary py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
         >
           {createContract.isPending ? "Submitting..." : "Submit Proposal"}

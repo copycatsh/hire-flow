@@ -1,10 +1,16 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { AuthState } from "@hire-flow/ui";
 import { routeTree } from "./routeTree.gen";
 import "@hire-flow/ui/globals.css";
 
-const router = createRouter({ routeTree });
+const auth = new AuthState("/client");
+
+const router = createRouter({
+  routeTree,
+  context: { auth },
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

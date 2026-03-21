@@ -1,4 +1,1 @@
-export interface AuthUser {
-  user_id: string;
-  role: string;
-}
+export type { AuthUser } from "@hire-flow/ui";
