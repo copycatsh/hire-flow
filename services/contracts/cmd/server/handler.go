@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strconv"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -19,6 +20,7 @@ type ContractHandler struct {
 
 func (h *ContractHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1/contracts", func(r chi.Router) {
+		r.Get("/", h.ListContracts)
 		r.Post("/", h.CreateContract)
 		r.Put("/{id}/accept", h.AcceptContract)
 		r.Put("/{id}/complete", h.CompleteContract)
@@ -184,6 +186,48 @@ func (h *ContractHandler) GetContract(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, c)
+}
+
+func (h *ContractHandler) ListContracts(w http.ResponseWriter, r *http.Request) {
+	filter := ListFilter{
+		ClientID:     r.URL.Query().Get("client_id"),
+		FreelancerID: r.URL.Query().Get("freelancer_id"),
+	}
+
+	if filter.ClientID == "" && filter.FreelancerID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "client_id or freelancer_id required"})
+		return
+	}
+
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid limit parameter"})
+			return
+		}
+		filter.Limit = n
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid offset parameter"})
+			return
+		}
+		filter.Offset = n
+	}
+
+	contracts, err := h.contracts.List(r.Context(), h.db, filter)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "list contracts", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+
+	if contracts == nil {
+		contracts = []Contract{}
+	}
+
+	writeJSON(w, http.StatusOK, contracts)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

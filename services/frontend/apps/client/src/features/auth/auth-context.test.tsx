@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { cleanup, render, screen, act } from "@testing-library/react";
-import { AuthProvider, useAuth } from "./auth-context";
+import { AuthProvider, useAuth, AuthState } from "@hire-flow/ui";
 
 function TestConsumer() {
   const { user, setUser, logout } = useAuth();
@@ -13,18 +13,24 @@ function TestConsumer() {
   );
 }
 
+function createTestAuth() {
+  return new AuthState("/test");
+}
+
 afterEach(() => {
   cleanup();
 });
 
 describe("AuthContext", () => {
   it("starts with null user", () => {
-    render(<AuthProvider><TestConsumer /></AuthProvider>);
+    const auth = createTestAuth();
+    render(<AuthProvider auth={auth}><TestConsumer /></AuthProvider>);
     expect(screen.getByTestId("user").textContent).toBe("null");
   });
 
   it("sets user after login", () => {
-    render(<AuthProvider><TestConsumer /></AuthProvider>);
+    const auth = createTestAuth();
+    render(<AuthProvider auth={auth}><TestConsumer /></AuthProvider>);
     act(() => screen.getByText("login").click());
     expect(screen.getByTestId("user").textContent).toBe("123");
   });
@@ -34,7 +40,8 @@ describe("AuthContext", () => {
       value: { assign: vi.fn() },
       writable: true,
     });
-    render(<AuthProvider><TestConsumer /></AuthProvider>);
+    const auth = createTestAuth();
+    render(<AuthProvider auth={auth}><TestConsumer /></AuthProvider>);
     act(() => screen.getByText("login").click());
     act(() => screen.getByText("logout").click());
     expect(screen.getByTestId("user").textContent).toBe("null");

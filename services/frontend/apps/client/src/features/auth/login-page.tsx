@@ -19,57 +19,50 @@ export function LoginPage() {
   }
 
   return (
-    <div className="grid h-screen grid-cols-1 md:grid-cols-2">
-      <div className="hidden flex-col justify-center bg-sidebar-bg px-16 md:flex">
-        <h2 className="font-display text-[32px] font-bold leading-tight tracking-tight text-sidebar-active">
-          The smarter way
-          <br />
-          to hire talent.
-        </h2>
-        <p className="mt-4 text-sm leading-relaxed text-sidebar-text">
-          AI-powered matching connects you with the right freelancers in seconds,
-          not weeks. Post a job, review matches, and get to work.
-        </p>
-      </div>
-      <div className="flex flex-col justify-center px-16">
-        <h3 className="font-display text-[22px] font-semibold tracking-tight">Sign in</h3>
-        <p className="mb-8 text-sm text-foreground-secondary">
-          Enter your credentials to continue
-        </p>
+    <div className="flex min-h-screen items-center justify-center bg-background-subtle">
+      <div className="w-full max-w-sm rounded-lg border border-border bg-background p-8 shadow-sm">
+        <h1 className="font-display text-2xl font-bold tracking-tight">
+          hire<span className="text-primary">flow</span>
+        </h1>
+        <p className="mt-1 text-sm text-foreground-secondary">Client Portal</p>
+
         {login.isError && (
-          <div className="mb-4 rounded-sm bg-error-bg px-4 py-2 text-sm text-error">
+          <div className="mt-4 rounded-md bg-error-bg px-4 py-2 text-sm text-error">
             {login.error.message}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium">Email</label>
+            <label className="text-sm font-medium text-foreground" htmlFor="email">Email</label>
             <input
+              id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
-              className="w-full rounded-sm border border-border-strong bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-light"
+              className="mt-1 w-full rounded-sm border border-border-strong bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-light"
               required
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium">Password</label>
+            <label className="text-sm font-medium text-foreground" htmlFor="password">Password</label>
             <input
+              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
-              className="w-full rounded-sm border border-border-strong bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-light"
+              className="mt-1 w-full rounded-sm border border-border-strong bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-light"
               required
             />
           </div>
           <button
             type="submit"
             disabled={login.isPending}
-            className="mt-1 w-full rounded-md bg-primary py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
+            className="w-full rounded-sm bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
           >
-            {login.isPending ? "Signing in..." : "Sign in"}
+            {login.isPending ? "Signing in..." : "Sign In"}
           </button>
         </form>
       </div>

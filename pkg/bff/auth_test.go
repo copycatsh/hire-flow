@@ -1,4 +1,4 @@
-package main
+package bff
 
 import (
 	"encoding/json"
@@ -13,10 +13,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testSecret = "test-secret-key-for-jwt-testing-1234567890"
+
+func newTestAuthConfig() *AuthConfig {
+	return &AuthConfig{
+		Secret:          []byte(testSecret),
+		AccessTokenTTL:  15 * time.Minute,
+		RefreshTokenTTL: 24 * time.Hour,
+	}
+}
+
 func newAuthHandler(t *testing.T) (*AuthHandler, *http.ServeMux) {
 	t.Helper()
 	auth := newTestAuthConfig()
-	h := &AuthHandler{auth: auth}
+	h := &AuthHandler{Auth: auth}
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 	return h, mux
@@ -55,7 +65,7 @@ func TestLogin_ValidCredentials(t *testing.T) {
 
 	require.NotNil(t, refreshCookie, "refresh_token cookie must be set")
 	assert.True(t, refreshCookie.HttpOnly)
-	assert.Equal(t, "/auth/refresh", refreshCookie.Path)
+	assert.Equal(t, "/", refreshCookie.Path)
 }
 
 func TestLogin_InvalidCredentials(t *testing.T) {
@@ -104,7 +114,7 @@ func TestLogin_MissingFields(t *testing.T) {
 func TestRefresh_ValidToken(t *testing.T) {
 	h, mux := newAuthHandler(t)
 
-	_, refreshToken, err := h.auth.GenerateTokens("user-1", "client")
+	_, refreshToken, err := h.Auth.GenerateTokens("user-1", "client")
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
@@ -144,7 +154,7 @@ func TestRefresh_ExpiredToken(t *testing.T) {
 		"iat":  time.Now().Add(-2 * time.Hour).Unix(),
 		"type": "refresh",
 	})
-	expired, err := token.SignedString(h.auth.Secret)
+	expired, err := token.SignedString(h.Auth.Secret)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
@@ -165,4 +175,43 @@ func TestRefresh_MissingCookie(t *testing.T) {
 	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestRefresh_AccessTokenRejected(t *testing.T) {
+	h, mux := newAuthHandler(t)
+
+	accessToken, _, err := h.Auth.GenerateTokens("user-1", "client")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: accessToken})
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestCookieSecurity_Secure(t *testing.T) {
+	auth := &AuthConfig{
+		Secret:          []byte(testSecret),
+		AccessTokenTTL:  15 * time.Minute,
+		RefreshTokenTTL: 24 * time.Hour,
+		CookieSecure:    true,
+	}
+	h := &AuthHandler{Auth: auth}
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	body := `{"email":"client@example.com","password":"password"}`
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "access_token" || c.Name == "refresh_token" {
+			assert.True(t, c.Secure, "cookie %s must be secure", c.Name)
+			assert.Equal(t, http.SameSiteStrictMode, c.SameSite, "cookie %s must use strict same-site", c.Name)
+		}
+	}
 }

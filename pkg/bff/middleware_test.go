@@ -1,4 +1,4 @@
-package main
+package bff
 
 import (
 	"encoding/json"
@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-const testSecret = "test-secret-key-for-jwt-testing-1234567890"
 
 func makeToken(t *testing.T, sub, role string, exp time.Time) string {
 	t.Helper()
@@ -28,21 +26,13 @@ func makeToken(t *testing.T, sub, role string, exp time.Time) string {
 	return s
 }
 
-func newTestAuthConfig() *AuthConfig {
-	return &AuthConfig{
-		Secret:          []byte(testSecret),
-		AccessTokenTTL:  15 * time.Minute,
-		RefreshTokenTTL: 24 * time.Hour,
-	}
-}
-
 func TestJWTMiddleware_ValidToken(t *testing.T) {
 	auth := newTestAuthConfig()
 
 	var gotUserID, gotRole string
 	handler := auth.JWTMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotUserID, _ = r.Context().Value(ctxKeyUserID).(string)
-		gotRole, _ = r.Context().Value(ctxKeyRole).(string)
+		gotUserID, _ = r.Context().Value(CtxKeyUserID).(string)
+		gotRole, _ = r.Context().Value(CtxKeyRole).(string)
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -109,7 +99,6 @@ func TestJWTMiddleware_NoneAlgorithm(t *testing.T) {
 		t.Fatal("handler should not be called")
 	}))
 
-	// Craft a token with "none" algorithm
 	token := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
 		"sub":  "attacker",
 		"role": "admin",
@@ -129,7 +118,6 @@ func TestJWTMiddleware_NoneAlgorithm(t *testing.T) {
 }
 
 func TestJWTMiddleware_RefreshTokenRejected(t *testing.T) {
-	// A refresh token must not be accepted as an access token.
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":  "user-123",
 		"role": "client",
@@ -163,7 +151,7 @@ func TestRateLimiter_AllowsUnderLimit(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req = req.WithContext(withUserID(req.Context(), "user-1"))
+	req = req.WithContext(WithUserID(req.Context(), "user-1"))
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -178,16 +166,14 @@ func TestRateLimiter_BlocksOverLimit(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	// First request consumes the burst
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req = req.WithContext(withUserID(req.Context(), "user-1"))
+	req = req.WithContext(WithUserID(req.Context(), "user-1"))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	// Second request should be rate limited
 	req = httptest.NewRequest(http.MethodGet, "/test", nil)
-	req = req.WithContext(withUserID(req.Context(), "user-1"))
+	req = req.WithContext(WithUserID(req.Context(), "user-1"))
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
@@ -204,23 +190,20 @@ func TestRateLimiter_IndependentBuckets(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	// Exhaust user-1's bucket
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req = req.WithContext(withUserID(req.Context(), "user-1"))
+	req = req.WithContext(WithUserID(req.Context(), "user-1"))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	// user-1 is now rate limited
 	req = httptest.NewRequest(http.MethodGet, "/test", nil)
-	req = req.WithContext(withUserID(req.Context(), "user-1"))
+	req = req.WithContext(WithUserID(req.Context(), "user-1"))
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 
-	// user-2 should still be allowed (independent bucket)
 	req = httptest.NewRequest(http.MethodGet, "/test", nil)
-	req = req.WithContext(withUserID(req.Context(), "user-2"))
+	req = req.WithContext(WithUserID(req.Context(), "user-2"))
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)

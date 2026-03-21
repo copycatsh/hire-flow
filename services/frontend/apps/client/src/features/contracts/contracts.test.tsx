@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ContractDetail } from "./contract-detail";
+import { ContractList } from "./contract-list";
 import { ProposeContractForm } from "./propose-contract-form";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -45,6 +46,67 @@ function createWrapper() {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+const mockContracts = [
+  {
+    ...mockContract,
+    id: "contract-001",
+    title: "Build Landing Page",
+    status: "ACTIVE" as const,
+  },
+  {
+    ...mockContract,
+    id: "contract-002",
+    title: "API Integration",
+    status: "AWAITING_ACCEPT" as const,
+    amount: 500000,
+  },
+];
+
+describe("ContractList", () => {
+  it("shows loading state", () => {
+    vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise(() => {}));
+
+    render(<ContractList />, { wrapper: createWrapper() });
+
+    expect(screen.getByText("Loading contracts...")).toBeInTheDocument();
+  });
+
+  it("renders contract cards with status badges", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify(mockContracts), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    render(<ContractList />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText("Build Landing Page")).toBeInTheDocument();
+    });
+    expect(screen.getByText("API Integration")).toBeInTheDocument();
+    expect(screen.getByText("ACTIVE")).toBeInTheDocument();
+    expect(screen.getByText("AWAITING_ACCEPT")).toBeInTheDocument();
+  });
+
+  it("renders empty state", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    render(<ContractList />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No contracts yet. Propose a contract from a matched freelancer."),
+      ).toBeInTheDocument();
+    });
+  });
 });
 
 describe("ContractDetail", () => {

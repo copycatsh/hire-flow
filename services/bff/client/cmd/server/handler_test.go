@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/copycatsh/hire-flow/pkg/bff"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,19 +19,19 @@ func setupTestMux(t *testing.T, jobsSrv, matchSrv, contractsSrv, paymentsSrv *ht
 	mux := http.NewServeMux()
 
 	if jobsSrv != nil {
-		jh := &JobHandler{jobs: &ServiceClient{BaseURL: jobsSrv.URL, HTTP: jobsSrv.Client(), Name: "jobs"}}
+		jh := &JobHandler{jobs: &bff.ServiceClient{BaseURL: jobsSrv.URL, HTTP: jobsSrv.Client(), Name: "jobs"}}
 		jh.RegisterRoutes(mux)
 	}
 	if matchSrv != nil {
-		mh := &MatchHandler{matching: &ServiceClient{BaseURL: matchSrv.URL, HTTP: matchSrv.Client(), Name: "matching"}}
+		mh := &MatchHandler{matching: &bff.ServiceClient{BaseURL: matchSrv.URL, HTTP: matchSrv.Client(), Name: "matching"}}
 		mh.RegisterRoutes(mux)
 	}
 	if contractsSrv != nil {
-		ch := &ContractHandler{contracts: &ServiceClient{BaseURL: contractsSrv.URL, HTTP: contractsSrv.Client(), Name: "contracts"}}
+		ch := &ContractHandler{contracts: &bff.ServiceClient{BaseURL: contractsSrv.URL, HTTP: contractsSrv.Client(), Name: "contracts"}}
 		ch.RegisterRoutes(mux)
 	}
 	if paymentsSrv != nil {
-		ph := &PaymentHandler{payments: &ServiceClient{BaseURL: paymentsSrv.URL, HTTP: paymentsSrv.Client(), Name: "payments"}}
+		ph := &PaymentHandler{payments: &bff.ServiceClient{BaseURL: paymentsSrv.URL, HTTP: paymentsSrv.Client(), Name: "payments"}}
 		ph.RegisterRoutes(mux)
 	}
 
@@ -40,8 +41,8 @@ func setupTestMux(t *testing.T, jobsSrv, matchSrv, contractsSrv, paymentsSrv *ht
 func authedRequest(t *testing.T, method, path string, body io.Reader) *http.Request {
 	t.Helper()
 	req := httptest.NewRequest(method, path, body)
-	ctx := context.WithValue(req.Context(), ctxKeyUserID, "user-1")
-	ctx = context.WithValue(ctx, ctxKeyRole, "client")
+	ctx := context.WithValue(req.Context(), bff.CtxKeyUserID, "user-1")
+	ctx = context.WithValue(ctx, bff.CtxKeyRole, "client")
 	return req.WithContext(ctx)
 }
 

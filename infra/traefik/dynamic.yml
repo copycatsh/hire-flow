@@ -38,6 +38,7 @@ http:
           - OPTIONS
         accessControlAllowOriginList:
           - "http://localhost:5173"
+          - "http://localhost:5174"
         accessControlAllowHeaders:
           - Content-Type
           - Authorization

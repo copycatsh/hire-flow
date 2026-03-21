@@ -81,9 +81,17 @@ type MilestoneSpec struct {
 	Position    int    `json:"position"`
 }
 
+type ListFilter struct {
+	ClientID     string
+	FreelancerID string
+	Limit        int
+	Offset       int
+}
+
 type ContractStore interface {
 	Create(ctx context.Context, db DBTX, c Contract) error
 	GetByID(ctx context.Context, db DBTX, id string) (Contract, error)
+	List(ctx context.Context, db DBTX, filter ListFilter) ([]Contract, error)
 	UpdateStatus(ctx context.Context, db DBTX, id string, from string, to string) error
 	SetHoldID(ctx context.Context, db DBTX, id string, holdID string) error
 }
