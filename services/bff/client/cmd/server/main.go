@@ -26,6 +26,7 @@ func main() {
 	contractsURL := cmp.Or(os.Getenv("CONTRACTS_URL"), "http://contracts:8003")
 	paymentsURL := cmp.Or(os.Getenv("PAYMENTS_URL"), "http://payments:8004")
 	otelEndpoint := cmp.Or(os.Getenv("OTEL_ENDPOINT"), "localhost:4317")
+	cookieSecure := os.Getenv("COOKIE_SECURE") != "false"
 
 	slog.SetDefault(slog.New(
 		telemetry.NewTracedHandler(slog.NewJSONHandler(os.Stdout, nil)),
@@ -49,6 +50,7 @@ func main() {
 		Secret:          []byte(jwtSecret),
 		AccessTokenTTL:  15 * time.Minute,
 		RefreshTokenTTL: 7 * 24 * time.Hour,
+		CookieSecure:    cookieSecure,
 	}
 
 	httpClient := &http.Client{

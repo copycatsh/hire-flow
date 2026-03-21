@@ -116,13 +116,17 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) setTokenCookies(w http.ResponseWriter, accessToken, refreshToken string) {
+	sameSite := http.SameSiteStrictMode
+	if !h.auth.CookieSecure {
+		sameSite = http.SameSiteLaxMode
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   h.auth.CookieSecure,
+		SameSite: sameSite,
 		MaxAge:   int(h.auth.AccessTokenTTL.Seconds()),
 	})
 	http.SetCookie(w, &http.Cookie{
@@ -130,8 +134,8 @@ func (h *AuthHandler) setTokenCookies(w http.ResponseWriter, accessToken, refres
 		Value:    refreshToken,
 		Path:     "/auth/refresh",
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   h.auth.CookieSecure,
+		SameSite: sameSite,
 		MaxAge:   int(h.auth.RefreshTokenTTL.Seconds()),
 	})
 }

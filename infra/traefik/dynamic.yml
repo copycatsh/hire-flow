@@ -5,6 +5,7 @@ http:
       entryPoints:
         - web
       middlewares:
+        - cors-headers
         - strip-client
       service: bff-client
 
@@ -13,6 +14,7 @@ http:
       entryPoints:
         - web
       middlewares:
+        - cors-headers
         - strip-freelancer
       service: bff-freelancer
 
@@ -21,10 +23,26 @@ http:
       entryPoints:
         - web
       middlewares:
+        - cors-headers
         - strip-admin
       service: bff-admin
 
   middlewares:
+    cors-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        accessControlAllowOriginList:
+          - "http://localhost:5173"
+        accessControlAllowHeaders:
+          - Content-Type
+          - Authorization
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 3600
     strip-client:
       stripPrefix:
         prefixes:
