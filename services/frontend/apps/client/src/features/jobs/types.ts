@@ -15,4 +15,5 @@ export interface CreateJobRequest {
   description: string;
   budget_min: number;
   budget_max: number;
+  client_id: string;
 }

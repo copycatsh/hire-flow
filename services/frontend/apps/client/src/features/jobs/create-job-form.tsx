@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
+import { useAuth } from "@/features/auth/auth-context";
 import { useCreateJob } from "./queries";
 
 const schema = z
@@ -26,6 +27,7 @@ export function CreateJobForm() {
   const [budgetMax, setBudgetMax] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
+  const { user } = useAuth();
   const createJob = useCreateJob();
   const navigate = useNavigate();
 
@@ -52,12 +54,15 @@ export function CreateJobForm() {
       return;
     }
 
+    if (!user) return;
+
     createJob.mutate(
       {
         title: result.data.title,
         description: result.data.description,
         budget_min: result.data.budget_min * 100,
         budget_max: result.data.budget_max * 100,
+        client_id: user.user_id,
       },
       {
         onSuccess: (job) => navigate({ to: "/jobs/$id", params: { id: job.id } }),
