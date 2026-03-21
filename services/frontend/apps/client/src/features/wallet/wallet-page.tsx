@@ -16,8 +16,10 @@ export function WalletPage() {
 
   if (error) {
     return (
-      <div className="rounded-sm border border-red-300 bg-red-50 p-4 text-sm text-red-700">
-        Failed to load wallet: {error.message}
+      <div className="rounded-sm border border-border bg-error-bg p-4 text-sm text-error">
+        {error.message.includes("not found")
+          ? "Wallet not found. Run the seed command to create test wallets: docker compose exec payments /seed"
+          : `Failed to load wallet: ${error.message}`}
       </div>
     );
   }
@@ -32,7 +34,7 @@ export function WalletPage() {
     <div>
       <h1 className="font-display text-2xl font-semibold tracking-tight">Wallet</h1>
 
-      <div className="mt-6 rounded-sm border border-border bg-white p-6">
+      <div className="mt-6 rounded-sm border border-border bg-background p-6">
         <p className="text-xs uppercase tracking-wider text-foreground-secondary">Total Balance</p>
         <div className="mt-1 flex items-baseline gap-2">
           <span className="font-mono text-3xl font-bold tracking-tight">
@@ -43,7 +45,7 @@ export function WalletPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4">
-        <div className="rounded-sm border border-border bg-white p-6">
+        <div className="rounded-sm border border-border bg-background p-6">
           <p className="text-xs uppercase tracking-wider text-foreground-secondary">Available</p>
           <p
             className={`mt-1 font-mono text-xl font-bold tracking-tight ${
@@ -53,7 +55,7 @@ export function WalletPage() {
             {formatCurrency(wallet.available_balance)}
           </p>
         </div>
-        <div className="rounded-sm border border-border bg-white p-6">
+        <div className="rounded-sm border border-border bg-background p-6">
           <p className="text-xs uppercase tracking-wider text-foreground-secondary">Held</p>
           <p
             className={`mt-1 font-mono text-xl font-bold tracking-tight ${

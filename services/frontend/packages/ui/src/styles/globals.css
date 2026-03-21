@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../../../../apps/client/src");
 
 @theme {
   --font-display: "Instrument Sans", sans-serif;

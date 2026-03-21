@@ -13,6 +13,14 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }));
 
+vi.mock("@/features/auth/auth-context", () => ({
+  useAuth: () => ({
+    user: { user_id: "11111111-1111-1111-1111-111111111111", role: "client" },
+    setUser: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
 function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: {
@@ -133,7 +141,7 @@ describe("CreateJobForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("submits valid form", async () => {
+  it("submits valid form with client_id", async () => {
     const createdJob = { id: "new-job-1", title: "Test Job" };
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify(createdJob), {
@@ -163,7 +171,10 @@ describe("CreateJobForm", () => {
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(
         expect.stringContaining("/api/v1/jobs"),
-        expect.objectContaining({ method: "POST" }),
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining('"client_id":"11111111-1111-1111-1111-111111111111"'),
+        }),
       );
     });
   });
