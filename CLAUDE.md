@@ -47,6 +47,7 @@ omitzero in JSON tags, SplitSeq/FieldsSeq for iteration, wg.Go().
 | OTel Collector   | 4318 | HTTP      |
 | Prometheus       | 9090 | —         |
 | Grafana          | 3000 | —         |
+| frontend-client  | 5173 | Vite      |
 
 ## Go Conventions
 - Error handling: wrap with fmt.Errorf("operation: %w", err)
@@ -60,6 +61,12 @@ omitzero in JSON tags, SplitSeq/FieldsSeq for iteration, wg.Go().
 - pydantic v2 for models
 - pytest for tests
 - ruff for linting
+
+## Design System
+Always read DESIGN.md before making any visual or UI decisions.
+All font choices, colors, spacing, and aesthetic direction are defined there.
+Do not deviate without explicit user approval.
+In QA mode, flag any code that doesn't match DESIGN.md.
 
 ## Docker
 - compose.yaml (not docker-compose.yml)

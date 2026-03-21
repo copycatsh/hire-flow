@@ -313,6 +313,7 @@ services:
       CONTRACTS_URL: "http://contracts:8003"
       PAYMENTS_URL: "http://payments:8004"
       OTEL_ENDPOINT: "otel-collector:4317"
+      COOKIE_SECURE: "false"
     ports:
       - "8010:8010"
     networks:

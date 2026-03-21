@@ -27,6 +27,7 @@ type AuthConfig struct {
 	Secret          []byte
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
+	CookieSecure    bool
 }
 
 func (a *AuthConfig) JWTMiddleware(next http.Handler) http.Handler {

@@ -50,11 +50,11 @@
 - **Context:** MVP uses hardcoded test users (bounded). Production needs this or a distributed rate limiter (Redis).
 - **Depends on:** M5 complete
 
-### Add CORS middleware to BFFs
-- **What:** Add CORS headers (Access-Control-*) to BFF responses for browser requests
-- **Why:** React SPAs (M8+) will be blocked by browser CORS policy without this
-- **Context:** Not needed until frontend work. Can be done in Traefik or BFF layer.
-- **Depends on:** M5 complete, triggered by M8
+### Add Playwright e2e tests for client frontend
+- **What:** End-to-end browser tests for login → create job → view matches → propose contract flow
+- **Why:** Vitest + RTL tests mock the API. E2e tests verify the real stack works together (CORS, cookies, Traefik routing)
+- **Context:** M8 ships with Vitest + RTL + msw. E2e tests require Docker Compose running. Can be added post-M8 or in M9.
+- **Depends on:** M8 complete
 
 ### Add NATS message trace propagation
 - **What:** Inject W3C trace context into NATS message headers in outbox publisher, extract in consumers
@@ -73,6 +73,10 @@
 ### Extract outbox pattern to pkg/outbox/
 - **What:** Shared outbox publisher + store for jobs-api, payments, contracts
 - **Resolution:** Extracted in M3. `pkg/outbox` contains Entry, Store interface, PostgresStore, Publisher with EventPublisher interface. jobs-api updated to import from `pkg/outbox`.
+
+### Add CORS middleware to BFFs
+- **What:** Add CORS headers (Access-Control-*) to BFF responses for browser requests
+- **Resolution:** CORS handled in Traefik middleware (dynamic.yml), not BFF layer. Added in M8.
 
 ### Fix architecture doc contradictions
 - **What:** Update docs/architecture/overview.md to fix stale/contradictory info
