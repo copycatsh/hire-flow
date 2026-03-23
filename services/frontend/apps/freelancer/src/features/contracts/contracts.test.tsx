@@ -68,7 +68,7 @@ describe("ContractList", () => {
 
   it("renders contract cards with status badges", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockContracts), {
+      new Response(JSON.stringify({ items: mockContracts, total: mockContracts.length }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -86,7 +86,7 @@ describe("ContractList", () => {
 
   it("shows Action Required badge for AWAITING_ACCEPT contracts", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockContracts), {
+      new Response(JSON.stringify({ items: mockContracts, total: mockContracts.length }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -101,7 +101,7 @@ describe("ContractList", () => {
 
   it("renders empty state", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify([]), {
+      new Response(JSON.stringify({ items: [], total: 0 }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),

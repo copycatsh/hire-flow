@@ -28,7 +28,8 @@ function formatCurrency(cents: number) {
 }
 
 export function ContractList() {
-  const { data: contracts, isLoading, isError, error } = useContracts();
+  const { data, isLoading, isError, error } = useContracts();
+  const contracts = data?.items;
 
   if (isLoading) {
     return (

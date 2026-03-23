@@ -33,3 +33,8 @@ export interface CreateContractRequest {
   client_wallet_id: string;
   freelancer_wallet_id: string;
 }
+
+export interface ListResponse<T> {
+  items: T[];
+  total: number;
+}

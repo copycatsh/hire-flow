@@ -48,9 +48,15 @@ type ListJobsParams struct {
 	Offset int     `json:"offset"`
 }
 
+type ListResponse[T any] struct {
+	Items []T `json:"items"`
+	Total int `json:"total"`
+}
+
 type JobStore interface {
 	Create(ctx context.Context, db DBTX, req CreateJobRequest) (Job, error)
 	GetByID(ctx context.Context, db DBTX, id uuid.UUID) (Job, error)
 	List(ctx context.Context, db DBTX, params ListJobsParams) ([]Job, error)
+	Count(ctx context.Context, db DBTX, params ListJobsParams) (int, error)
 	Update(ctx context.Context, db DBTX, id uuid.UUID, req UpdateJobRequest) (Job, error)
 }

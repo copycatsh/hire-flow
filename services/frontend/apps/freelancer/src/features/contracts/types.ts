@@ -1,3 +1,8 @@
+export interface ListResponse<T> {
+  items: T[];
+  total: number;
+}
+
 export interface Contract {
   id: string;
   client_id: string;

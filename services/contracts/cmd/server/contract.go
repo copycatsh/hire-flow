@@ -88,10 +88,16 @@ type ListFilter struct {
 	Offset       int
 }
 
+type ListResponse[T any] struct {
+	Items []T `json:"items"`
+	Total int `json:"total"`
+}
+
 type ContractStore interface {
 	Create(ctx context.Context, db DBTX, c Contract) error
 	GetByID(ctx context.Context, db DBTX, id string) (Contract, error)
 	List(ctx context.Context, db DBTX, filter ListFilter) ([]Contract, error)
+	Count(ctx context.Context, db DBTX, filter ListFilter) (int, error)
 	UpdateStatus(ctx context.Context, db DBTX, id string, from string, to string) error
 	SetHoldID(ctx context.Context, db DBTX, id string, holdID string) error
 }

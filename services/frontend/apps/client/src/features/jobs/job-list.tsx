@@ -26,7 +26,7 @@ function timeAgo(iso: string): string {
 }
 
 export function JobList() {
-  const { data: jobs, isLoading, isError, error } = useJobs();
+  const { data, isLoading, isError, error } = useJobs();
 
   if (isLoading) {
     return (
@@ -59,13 +59,13 @@ export function JobList() {
         </Link>
       </div>
 
-      {!jobs || jobs.length === 0 ? (
+      {!data?.items?.length ? (
         <p className="text-sm text-foreground-secondary">
           No jobs yet. Create your first job to get started.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {jobs.map((job) => (
+          {data!.items.map((job) => (
             <Link
               key={job.id}
               to="/jobs/$id"

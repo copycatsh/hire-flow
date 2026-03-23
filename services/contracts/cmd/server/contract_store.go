@@ -106,6 +106,25 @@ func (s *MySQLContractStore) List(ctx context.Context, db DBTX, filter ListFilte
 	return contracts, nil
 }
 
+func (s *MySQLContractStore) Count(ctx context.Context, db DBTX, filter ListFilter) (int, error) {
+	query := `SELECT COUNT(*) FROM contracts WHERE 1=1`
+	args := []any{}
+	if filter.ClientID != "" {
+		query += " AND client_id = ?"
+		args = append(args, filter.ClientID)
+	}
+	if filter.FreelancerID != "" {
+		query += " AND freelancer_id = ?"
+		args = append(args, filter.FreelancerID)
+	}
+	var count int
+	err := db.QueryRowContext(ctx, query, args...).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("contract count: %w", err)
+	}
+	return count, nil
+}
+
 func (s *MySQLContractStore) SetHoldID(ctx context.Context, db DBTX, id string, holdID string) error {
 	_, err := db.ExecContext(ctx,
 		`UPDATE contracts SET hold_id = ? WHERE id = ?`,

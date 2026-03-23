@@ -3,6 +3,7 @@ module github.com/copycatsh/hire-flow/services/bff/admin
 go 1.25.0
 
 require (
+	github.com/copycatsh/hire-flow/pkg/bff v0.0.0-00010101000000-000000000000
 	github.com/copycatsh/hire-flow/pkg/telemetry v0.0.0-00010101000000-000000000000
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0
 )
@@ -14,6 +15,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -34,10 +36,13 @@ require (
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/grpc v1.71.0 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 )
+
+replace github.com/copycatsh/hire-flow/pkg/bff => ../../../pkg/bff
 
 replace github.com/copycatsh/hire-flow/pkg/telemetry => ../../../pkg/telemetry

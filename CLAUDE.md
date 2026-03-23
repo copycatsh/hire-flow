@@ -49,6 +49,7 @@ omitzero in JSON tags, SplitSeq/FieldsSeq for iteration, wg.Go().
 | Grafana          | 3000 | —         |
 | frontend-client  | 5173 | Vite      |
 | frontend-freelancer | 5174 | Vite   |
+| frontend-admin      | 5175 | Vite      |
 
 ## Go Conventions
 - Error handling: wrap with fmt.Errorf("operation: %w", err)

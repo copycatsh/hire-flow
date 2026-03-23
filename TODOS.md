@@ -50,11 +50,11 @@
 - **Context:** MVP uses hardcoded test users (bounded). Production needs this or a distributed rate limiter (Redis).
 - **Depends on:** M5 complete
 
-### Add Playwright e2e tests for client frontend
-- **What:** End-to-end browser tests for login → create job → view matches → propose contract flow
-- **Why:** Vitest + RTL tests mock the API. E2e tests verify the real stack works together (CORS, cookies, Traefik routing)
-- **Context:** M8 ships with Vitest + RTL + msw. E2e tests require Docker Compose running. Can be added post-M8 or in M9.
-- **Depends on:** M8 complete
+### Add Playwright e2e tests for client and admin frontends
+- **What:** End-to-end browser tests for client (login → create job → view matches → propose contract) and admin (login → dashboard → jobs → contracts → wallets) flows
+- **Why:** Vitest + RTL tests mock the API. E2e tests verify the real stack works together (CORS, cookies, Traefik routing, role enforcement)
+- **Context:** M8/M10 ship with Vitest + RTL + msw. E2e tests require Docker Compose running. Can be added post-M10.
+- **Depends on:** M10 complete
 
 ### Add NATS message trace propagation
 - **What:** Inject W3C trace context into NATS message headers in outbox publisher, extract in consumers

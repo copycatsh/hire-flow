@@ -24,6 +24,7 @@ type mockJobStore struct {
 	createFn func(ctx context.Context, db DBTX, req CreateJobRequest) (Job, error)
 	getFn    func(ctx context.Context, db DBTX, id uuid.UUID) (Job, error)
 	listFn   func(ctx context.Context, db DBTX, params ListJobsParams) ([]Job, error)
+	countFn  func(ctx context.Context, db DBTX, params ListJobsParams) (int, error)
 	updateFn func(ctx context.Context, db DBTX, id uuid.UUID, req UpdateJobRequest) (Job, error)
 }
 
@@ -46,6 +47,13 @@ func (m *mockJobStore) List(ctx context.Context, db DBTX, params ListJobsParams)
 		return m.listFn(ctx, db, params)
 	}
 	return nil, nil
+}
+
+func (m *mockJobStore) Count(ctx context.Context, db DBTX, params ListJobsParams) (int, error) {
+	if m.countFn != nil {
+		return m.countFn(ctx, db, params)
+	}
+	return 0, nil
 }
 
 func (m *mockJobStore) Update(ctx context.Context, db DBTX, id uuid.UUID, req UpdateJobRequest) (Job, error) {
@@ -156,6 +164,9 @@ func TestListJobs_Success(t *testing.T) {
 			listFn: func(_ context.Context, _ DBTX, _ ListJobsParams) ([]Job, error) {
 				return testJobs, nil
 			},
+			countFn: func(_ context.Context, _ DBTX, _ ListJobsParams) (int, error) {
+				return 2, nil
+			},
 		},
 	}
 
@@ -168,11 +179,12 @@ func TestListJobs_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var result []Job
+	var result ListResponse[Job]
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
-	assert.Len(t, result, 2)
-	assert.Equal(t, "Job 1", result[0].Title)
-	assert.Equal(t, "Job 2", result[1].Title)
+	assert.Len(t, result.Items, 2)
+	assert.Equal(t, 2, result.Total)
+	assert.Equal(t, "Job 1", result.Items[0].Title)
+	assert.Equal(t, "Job 2", result.Items[1].Title)
 }
 
 func TestCreateJob_BadRequest_MissingTitle(t *testing.T) {
