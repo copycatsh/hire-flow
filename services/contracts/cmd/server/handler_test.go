@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,35 @@ func newTestRouter(h *ContractHandler) *chi.Mux {
 	r := chi.NewRouter()
 	h.RegisterRoutes(r)
 	return r
+}
+
+type stubContractStore struct {
+	contracts []Contract
+	err       error
+}
+
+func (s *stubContractStore) Create(_ context.Context, _ DBTX, _ Contract) error {
+	return s.err
+}
+
+func (s *stubContractStore) GetByID(_ context.Context, _ DBTX, _ string) (Contract, error) {
+	return Contract{}, s.err
+}
+
+func (s *stubContractStore) List(_ context.Context, _ DBTX, _ ListFilter) ([]Contract, error) {
+	return s.contracts, s.err
+}
+
+func (s *stubContractStore) Count(_ context.Context, _ DBTX, _ ListFilter) (int, error) {
+	return len(s.contracts), s.err
+}
+
+func (s *stubContractStore) UpdateStatus(_ context.Context, _ DBTX, _ string, _ string, _ string) error {
+	return s.err
+}
+
+func (s *stubContractStore) SetHoldID(_ context.Context, _ DBTX, _ string, _ string) error {
+	return s.err
 }
 
 func TestHandler_CreateContract(t *testing.T) {
@@ -169,10 +199,11 @@ func TestHandler_ListContracts_ByClientID(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp []Contract
+	var resp ListResponse[Contract]
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Len(t, resp, 3)
-	for _, c := range resp {
+	assert.Len(t, resp.Items, 3)
+	assert.Equal(t, 3, resp.Total)
+	for _, c := range resp.Items {
 		assert.Equal(t, clientID, c.ClientID)
 	}
 }
@@ -204,10 +235,11 @@ func TestHandler_ListContracts_ByFreelancerID(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp []Contract
+	var resp ListResponse[Contract]
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Len(t, resp, 1)
-	assert.Equal(t, freelancerID, resp[0].FreelancerID)
+	assert.Len(t, resp.Items, 1)
+	assert.Equal(t, 1, resp.Total)
+	assert.Equal(t, freelancerID, resp.Items[0].FreelancerID)
 }
 
 func TestHandler_ListContracts_EmptyResult(t *testing.T) {
@@ -229,24 +261,32 @@ func TestHandler_ListContracts_EmptyResult(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp []Contract
+	var resp ListResponse[Contract]
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Len(t, resp, 0)
+	assert.Len(t, resp.Items, 0)
+	assert.Equal(t, 0, resp.Total)
 }
 
-func TestHandler_ListContracts_MissingFilter(t *testing.T) {
-	h := &ContractHandler{}
+func TestHandler_ListContracts_NoFilter(t *testing.T) {
+	store := &stubContractStore{
+		contracts: []Contract{
+			{ID: "c1", ClientID: "cl1", Title: "A"},
+			{ID: "c2", ClientID: "cl2", Title: "B"},
+		},
+	}
+	h := &ContractHandler{contracts: store}
 	r := newTestRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/contracts", nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp map[string]string
+	var resp ListResponse[Contract]
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, "client_id or freelancer_id required", resp["error"])
+	assert.Len(t, resp.Items, 2)
+	assert.Equal(t, 2, resp.Total)
 }
 
 func TestHandler_AcceptContract_WrongStatus(t *testing.T) {

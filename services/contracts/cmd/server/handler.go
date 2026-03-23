@@ -194,11 +194,6 @@ func (h *ContractHandler) ListContracts(w http.ResponseWriter, r *http.Request) 
 		FreelancerID: r.URL.Query().Get("freelancer_id"),
 	}
 
-	if filter.ClientID == "" && filter.FreelancerID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "client_id or freelancer_id required"})
-		return
-	}
-
 	if v := r.URL.Query().Get("limit"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
@@ -223,11 +218,18 @@ func (h *ContractHandler) ListContracts(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	total, err := h.contracts.Count(r.Context(), h.db, filter)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "count contracts", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+
 	if contracts == nil {
 		contracts = []Contract{}
 	}
 
-	writeJSON(w, http.StatusOK, contracts)
+	writeJSON(w, http.StatusOK, ListResponse[Contract]{Items: contracts, Total: total})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

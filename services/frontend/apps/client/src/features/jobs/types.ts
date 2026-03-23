@@ -17,3 +17,8 @@ export interface CreateJobRequest {
   budget_max: number;
   client_id: string;
 }
+
+export interface ListResponse<T> {
+  items: T[];
+  total: number;
+}

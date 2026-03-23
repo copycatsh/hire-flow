@@ -103,12 +103,23 @@ func (h *JobHandler) List(c echo.Context) error {
 		params.Status = &s
 	}
 
-	jobs, err := h.jobs.List(c.Request().Context(), h.pool, params)
+	ctx := c.Request().Context()
+
+	jobs, err := h.jobs.List(ctx, h.pool, params)
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, jobs)
+	total, err := h.jobs.Count(ctx, h.pool, params)
+	if err != nil {
+		return err
+	}
+
+	if jobs == nil {
+		jobs = []Job{}
+	}
+
+	return c.JSON(http.StatusOK, ListResponse[Job]{Items: jobs, Total: total})
 }
 
 func (h *JobHandler) Update(c echo.Context) error {

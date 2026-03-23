@@ -29,7 +29,7 @@ function formatCurrency(cents: number) {
 }
 
 export function ContractList() {
-  const { data: contracts, isLoading, isError, error } = useContracts();
+  const { data, isLoading, isError, error } = useContracts();
 
   if (isLoading) {
     return (
@@ -54,13 +54,13 @@ export function ContractList() {
         Your Contracts
       </h1>
 
-      {!contracts || contracts.length === 0 ? (
+      {!data?.items?.length ? (
         <p className="text-sm text-foreground-secondary">
           No contracts yet. Propose a contract from a matched freelancer.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {contracts.map((contract) => (
+          {data!.items.map((contract) => (
             <Link
               key={contract.id}
               to="/contracts/$id"

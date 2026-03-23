@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/copycatsh/hire-flow/pkg/outbox"
 	"github.com/gin-gonic/gin"
@@ -27,6 +28,7 @@ func (h *PaymentHandler) RegisterRoutes(r *gin.Engine) {
 	g.POST("/release", h.ReleaseFunds)
 	g.POST("/transfer", h.TransferFunds)
 	g.GET("/wallet/:user_id", h.GetWallet)
+	g.GET("/wallets", h.ListWallets)
 }
 
 func (h *PaymentHandler) HoldFunds(c *gin.Context) {
@@ -410,4 +412,41 @@ func (h *PaymentHandler) GetWallet(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, wallet)
+}
+
+func (h *PaymentHandler) ListWallets(c *gin.Context) {
+	limit := 20
+	if v := c.Query("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
+			return
+		}
+		limit = n
+	}
+	offset := 0
+	if v := c.Query("offset"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset"})
+			return
+		}
+		offset = n
+	}
+	wallets, err := h.wallets.ListAll(c.Request.Context(), h.pool, limit, offset)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "list wallets", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	if wallets == nil {
+		wallets = []Wallet{}
+	}
+	total, err := h.wallets.Count(c.Request.Context(), h.pool)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "count wallets", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, ListResponse[Wallet]{Items: wallets, Total: total})
 }

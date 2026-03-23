@@ -23,6 +23,8 @@ type mockWalletStore struct {
 	getByIDForUpdateFn func(ctx context.Context, db DBTX, id uuid.UUID) (Wallet, error)
 	updateBalanceFn    func(ctx context.Context, db DBTX, id uuid.UUID, newBalance int64) error
 	seedFn             func(ctx context.Context, db DBTX, userID uuid.UUID, balance int64, currency string) (Wallet, error)
+	listAllFn          func(ctx context.Context, db DBTX, limit, offset int) ([]Wallet, error)
+	countFn            func(ctx context.Context, db DBTX) (int, error)
 }
 
 func (m *mockWalletStore) GetByUserID(ctx context.Context, db DBTX, userID uuid.UUID) (Wallet, error) {
@@ -51,6 +53,20 @@ func (m *mockWalletStore) Seed(ctx context.Context, db DBTX, userID uuid.UUID, b
 		return m.seedFn(ctx, db, userID, balance, currency)
 	}
 	return Wallet{}, nil
+}
+
+func (m *mockWalletStore) ListAll(ctx context.Context, db DBTX, limit, offset int) ([]Wallet, error) {
+	if m.listAllFn != nil {
+		return m.listAllFn(ctx, db, limit, offset)
+	}
+	return nil, nil
+}
+
+func (m *mockWalletStore) Count(ctx context.Context, db DBTX) (int, error) {
+	if m.countFn != nil {
+		return m.countFn(ctx, db)
+	}
+	return 0, nil
 }
 
 type mockHoldStore struct {
@@ -306,4 +322,46 @@ func TestTransferFunds_MissingRecipientWalletID(t *testing.T) {
 	var resp map[string]string
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Equal(t, "recipient_wallet_id is required", resp["error"])
+}
+
+func TestListWallets_Empty(t *testing.T) {
+	h := &PaymentHandler{
+		wallets: &mockWalletStore{
+			listAllFn: func(_ context.Context, _ DBTX, _, _ int) ([]Wallet, error) {
+				return nil, nil
+			},
+			countFn: func(_ context.Context, _ DBTX) (int, error) {
+				return 0, nil
+			},
+		},
+	}
+	r := setupTestRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/payments/wallets", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var body ListResponse[Wallet]
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Empty(t, body.Items)
+	assert.Equal(t, 0, body.Total)
+}
+
+func TestListWallets_InvalidLimit(t *testing.T) {
+	h := &PaymentHandler{
+		wallets: &mockWalletStore{},
+	}
+	r := setupTestRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/payments/wallets?limit=abc", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var body map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Equal(t, "invalid limit", body["error"])
 }

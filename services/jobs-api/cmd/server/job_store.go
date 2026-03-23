@@ -79,6 +79,26 @@ func (s *PostgresJobStore) List(ctx context.Context, db DBTX, params ListJobsPar
 	return jobs, nil
 }
 
+func (s *PostgresJobStore) Count(ctx context.Context, db DBTX, params ListJobsParams) (int, error) {
+	var (
+		query strings.Builder
+		args  []any
+		argN  int
+	)
+	query.WriteString(`SELECT COUNT(*) FROM jobs`)
+	if params.Status != nil {
+		argN++
+		query.WriteString(` WHERE status = $` + strconv.Itoa(argN))
+		args = append(args, *params.Status)
+	}
+	var count int
+	err := db.QueryRow(ctx, query.String(), args...).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("job count: %w", err)
+	}
+	return count, nil
+}
+
 func (s *PostgresJobStore) Update(ctx context.Context, db DBTX, id uuid.UUID, req UpdateJobRequest) (Job, error) {
 	var j Job
 	err := db.QueryRow(ctx,

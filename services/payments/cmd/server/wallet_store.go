@@ -77,3 +77,48 @@ func (s *PostgresWalletStore) Seed(ctx context.Context, db DBTX, userID uuid.UUI
 	}
 	return w, nil
 }
+
+func (s *PostgresWalletStore) ListAll(ctx context.Context, db DBTX, limit, offset int) ([]Wallet, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	rows, err := db.Query(ctx,
+		`SELECT w.id, w.user_id, w.balance, w.currency,
+		        w.balance - COALESCE(h.held, 0) AS available_balance,
+		        w.created_at, w.updated_at
+		 FROM wallets w
+		 LEFT JOIN (
+		     SELECT wallet_id, SUM(amount) AS held
+		     FROM holds
+		     WHERE status = 'active'
+		     GROUP BY wallet_id
+		 ) h ON h.wallet_id = w.id
+		 ORDER BY w.created_at DESC
+		 LIMIT $1 OFFSET $2`, limit, offset,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("wallet list all: %w", err)
+	}
+	defer rows.Close()
+	var wallets []Wallet
+	for rows.Next() {
+		var w Wallet
+		if err := rows.Scan(&w.ID, &w.UserID, &w.Balance, &w.Currency, &w.AvailableBalance, &w.CreatedAt, &w.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("wallet list scan: %w", err)
+		}
+		wallets = append(wallets, w)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("wallet list rows: %w", err)
+	}
+	return wallets, nil
+}
+
+func (s *PostgresWalletStore) Count(ctx context.Context, db DBTX) (int, error) {
+	var count int
+	err := db.QueryRow(ctx, `SELECT COUNT(*) FROM wallets`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("wallet count: %w", err)
+	}
+	return count, nil
+}

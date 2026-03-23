@@ -1,6 +1,9 @@
 package bff
 
-import "context"
+import (
+	"context"
+	"net/http"
+)
 
 type contextKey string
 
@@ -21,4 +24,16 @@ func UserIDFrom(ctx context.Context) string {
 func RoleFrom(ctx context.Context) string {
 	s, _ := ctx.Value(CtxKeyRole).(string)
 	return s
+}
+
+func RequireRole(role string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if RoleFrom(r.Context()) != role {
+				WriteError(w, http.StatusForbidden, "forbidden: requires "+role+" role")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
